@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { axiosInstance } from '../lib/axios.js';
+import { axiosInstance } from '../../lib/axios.js';
+import OTPVerification from './OTPVerification.jsx';
 
+// SignupPage.jsx - This is your updated signup file
+// Replace your existing SignupPage.jsx with this complete file
 const SignUpPage = () => {
   const [formPage, setFormPage] = useState(1);
   const [formData, setFormData] = useState({
@@ -59,12 +62,81 @@ const SignUpPage = () => {
     return true;
   };
 
-  const handleNext = () => {
-    if (validateFirstPage()) setFormPage(2);
+  const handleNext = async () => {
+    if (validateFirstPage()) {
+      // TESTING MODE: Skip OTP API call
+      // Comment out this block and uncomment the API call below when backend is ready
+      setFormPage(2);
+      setError('');
+      
+      /* 
+      // Uncomment this when backend /user/send-otp endpoint is ready
+      setLoading(true);
+      try {
+        const response = await axiosInstance.post('/user/send-otp', {
+          email: formData.email
+        });
+        
+        if (response.data.success) {
+          setFormPage(2);
+          setError('');
+        } else {
+          setError('Failed to send OTP. Try again.');
+        }
+      } catch (err) {
+        console.error('OTP send error:', err);
+        setError(err.response?.data?.message || 'Failed to send OTP. Try again.');
+      } finally {
+        setLoading(false);
+      }
+      */
+    }
   };
 
-  const handlePrevious = () => {
+  const handleOTPVerify = async (otp) => {
+    // TESTING MODE: Accept any 6-digit OTP
+    // Comment out this block and uncomment the API call below when backend is ready
+    
+    if (otp.length === 6) {
+      // For testing: accept "123456" as valid OTP
+      if (otp === "123456") {
+        setFormPage(3);
+        setError('');
+      } else {
+        setError('Wrong OTP entered. Please try again. (Test OTP: 123456)');
+      }
+    }
+    
+    /* 
+    // Uncomment this when backend /user/verify-otp endpoint is ready
+    setLoading(true);
+    setError('');
+    
+    try {
+      const response = await axiosInstance.post('/user/verify-otp', {
+        email: formData.email,
+        otp: otp
+      });
+      
+      if (response.data.success) {
+        setFormPage(3);
+      }
+    } catch (err) {
+      console.error('OTP verification error:', err);
+      setError(err.response?.data?.message || 'Wrong OTP entered. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+    */
+  };
+
+  const handleBackFromOTP = () => {
     setFormPage(1);
+    setError('');
+  };
+
+  const handleBackFromPhoto = () => {
+    setFormPage(2);
     setError('');
   };
 
@@ -273,12 +345,21 @@ const SignUpPage = () => {
                 disabled={loading}
                 className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-2.5 px-4 rounded-md font-medium hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-6"
               >
-                Next
+                {loading ? 'Sending OTP...' : 'Next'}
               </button>
             </>
           )}
 
           {formPage === 2 && (
+            <OTPVerification
+              email={formData.email}
+              onVerify={handleOTPVerify}
+              onBack={handleBackFromOTP}
+              loading={loading}
+            />
+          )}
+
+          {formPage === 3 && (
             <>
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-semibold text-indigo-800 mb-2 tracking-wide">UPLOAD PHOTO</h2>
@@ -317,7 +398,7 @@ const SignUpPage = () => {
 
               <div className="flex justify-between items-center">
                 <button
-                  onClick={handlePrevious}
+                  onClick={handleBackFromPhoto}
                   disabled={loading}
                   className="text-indigo-600 hover:text-indigo-500 font-medium disabled:opacity-50"
                 >
@@ -344,7 +425,7 @@ const SignUpPage = () => {
           </div>
         </div>
 
-        {loading && (
+        {loading && formPage === 3 && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white p-8 rounded-xl shadow-2xl text-center max-w-sm mx-4">
               <div className="relative w-24 h-24 mx-auto mb-6">

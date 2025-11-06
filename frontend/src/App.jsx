@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LandingPage from './components/LandingPage';
 import UserDashboard, { ThemeProvider } from './components/UserDashboard';
 import LoginPage from './components/LoginPage';
-import SignupPage from './components/SignupPage';
+import SignupPage from './components/signupcomponents/SignupPage.jsx';
 import ProtectedRoute from './ProtectedRoute';
 import UserIdRedirect from './lib/UserIdRedirect.jsx';
 import DashboardHome from './components/dashboardcomponents/DashboardHome.jsx';
