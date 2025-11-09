@@ -193,7 +193,10 @@ export const generateEmailVerificationOtp = async (req, res) => {
     const { useremail } = req.params;
 
     if (!useremail) {
-      return res.status(400).json({ message: "Email parameter is missing." });
+      return res.status(400).json({ 
+        success: false,
+        message: "Email parameter is missing." 
+      });
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000);
@@ -205,9 +208,9 @@ export const generateEmailVerificationOtp = async (req, res) => {
       { new: true, upsert: true }
     );
 
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT,
+      port: parseInt(process.env.SMTP_PORT),
       secure: process.env.SMTP_PORT == 465,
       auth: {
         user: process.env.EMAIL_USER,
@@ -234,7 +237,6 @@ export const generateEmailVerificationOtp = async (req, res) => {
 <body style="margin: 0; padding: 0; background: #1a1a1a; font-family: 'Inter', Arial, sans-serif; min-height: 100vh;">
     <div style="max-width: 600px; margin: 0 auto; padding: 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center;">
         <div style="width: 100%; background: #1a1a1a; position: relative; overflow: hidden; border-radius: 20px;">
-            <!-- Purple side borders -->
             <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 60px; background: linear-gradient(180deg, #8B5CF6, #A855F7, #C084FC); border-radius: 20px 0 0 20px;"></div>
             <div style="position: absolute; right: 0; top: 0; bottom: 0; width: 60px; background: linear-gradient(180deg, #8B5CF6, #A855F7, #C084FC); border-radius: 0 20px 20px 0;"></div>
             
@@ -258,7 +260,6 @@ export const generateEmailVerificationOtp = async (req, res) => {
                 <div style="text-align: center; margin: 60px 0;">
                     <p style="color: #9CA3AF; font-size: 14px; margin: 0 0 20px 0; font-weight: 500; letter-spacing: 2px; text-transform: uppercase;">Your Verification Code</p>
                     
-                    <!-- OTP Display with gradient border -->
                     <div style="position: relative; display: inline-block; margin: 20px 0;">
                         <div style="background: linear-gradient(45deg, #F59E0B, #EF4444, #EC4899, #8B5CF6); padding: 3px; border-radius: 20px;">
                             <div style="background: #1a1a1a; border-radius: 17px; padding: 30px 40px;">
@@ -292,7 +293,7 @@ export const generateEmailVerificationOtp = async (req, res) => {
     </div>
 </body>
 </html>
-   `,
+      `,
     };
 
     await transporter.sendMail(mailOptions);
@@ -938,6 +939,61 @@ export const getInsights = async (req, res) => {
       success: false,
       message: "Internal server error while fetching insights data.",
       error: error.message,
+    });
+  }
+};
+
+export const verifyOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and OTP are required"
+      });
+    }
+
+    const verification = await Verification.findOne({ email });
+
+    if (!verification) {
+      return res.status(404).json({
+        success: false,
+        message: "No OTP found for this email"
+      });
+    }
+
+    if (verification.otp !== Number(otp)) {
+      return res.status(200).json({
+        success: false,
+        message: "Invalid OTP"
+      });
+    }
+
+    const currentTime = new Date();
+    const expiryTime = new Date(verification.expiry);
+    const timeDifference = (currentTime - expiryTime) / (1000 * 60);
+
+    if (timeDifference > 10) {
+      await Verification.deleteOne({ email });
+      return res.status(400).json({
+        success: false,
+        message: "OTP has expired"
+      });
+    }
+
+    await Verification.deleteOne({ email });
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP verified successfully"
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
     });
   }
 };

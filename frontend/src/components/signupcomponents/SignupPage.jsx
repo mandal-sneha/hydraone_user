@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { axiosInstance } from '../../lib/axios.js';
 import OTPVerification from './OTPVerification.jsx';
 
-// SignupPage.jsx - This is your updated signup file
-// Replace your existing SignupPage.jsx with this complete file
 const SignUpPage = () => {
   const [formPage, setFormPage] = useState(1);
   const [formData, setFormData] = useState({
@@ -64,18 +62,10 @@ const SignUpPage = () => {
 
   const handleNext = async () => {
     if (validateFirstPage()) {
-      // TESTING MODE: Skip OTP API call
-      // Comment out this block and uncomment the API call below when backend is ready
-      setFormPage(2);
-      setError('');
-      
-      /* 
-      // Uncomment this when backend /user/send-otp endpoint is ready
       setLoading(true);
+      setError('');
       try {
-        const response = await axiosInstance.post('/user/send-otp', {
-          email: formData.email
-        });
+        const response = await axiosInstance.post(`/user/${formData.email}/generate-email-verification-otp`);
         
         if (response.data.success) {
           setFormPage(2);
@@ -89,26 +79,10 @@ const SignUpPage = () => {
       } finally {
         setLoading(false);
       }
-      */
     }
   };
 
   const handleOTPVerify = async (otp) => {
-    // TESTING MODE: Accept any 6-digit OTP
-    // Comment out this block and uncomment the API call below when backend is ready
-    
-    if (otp.length === 6) {
-      // For testing: accept "123456" as valid OTP
-      if (otp === "123456") {
-        setFormPage(3);
-        setError('');
-      } else {
-        setError('Wrong OTP entered. Please try again. (Test OTP: 123456)');
-      }
-    }
-    
-    /* 
-    // Uncomment this when backend /user/verify-otp endpoint is ready
     setLoading(true);
     setError('');
     
@@ -120,14 +94,19 @@ const SignUpPage = () => {
       
       if (response.data.success) {
         setFormPage(3);
+        setError('');
+      } else {
+        setError(response.data.message || 'OTP verification failed.');
       }
     } catch (err) {
-      console.error('OTP verification error:', err);
-      setError(err.response?.data?.message || 'Wrong OTP entered. Please try again.');
+      if (err.response && err.response.data && err.response.data.message) {
+        setError(err.response.data.message);
+      } else {
+        setError('Wrong OTP entered. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
-    */
   };
 
   const handleBackFromOTP = () => {
@@ -356,6 +335,8 @@ const SignUpPage = () => {
               onVerify={handleOTPVerify}
               onBack={handleBackFromOTP}
               loading={loading}
+              error={error}
+              onError={setError}
             />
           )}
 

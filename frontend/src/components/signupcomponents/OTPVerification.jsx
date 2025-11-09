@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
+import {axiosInstance} from '../../lib/axios.js';
 
-// OTPVerification.jsx - Save this as a separate file
-const OTPVerification = ({ email, onVerify, onBack, loading }) => {
+const OTPVerification = ({ email, onVerify, onBack, loading, error, onError }) => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [error, setError] = useState('');
   const [resendTimer, setResendTimer] = useState(60);
+  const [resendLoading, setResendLoading] = useState(false);
   const inputRefs = useRef([]);
 
   useEffect(() => {
@@ -20,7 +20,7 @@ const OTPVerification = ({ email, onVerify, onBack, loading }) => {
     const newOtp = [...otp];
     newOtp[index] = value.slice(-1);
     setOtp(newOtp);
-    setError('');
+    if (onError) onError('');
 
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
@@ -49,17 +49,25 @@ const OTPVerification = ({ email, onVerify, onBack, loading }) => {
   const handleVerify = () => {
     const otpValue = otp.join('');
     if (otpValue.length !== 6) {
-      setError('Please enter complete OTP');
+      if (onError) onError('Please enter a 6-digit OTP');
       return;
     }
     onVerify(otpValue);
   };
 
-  const handleResend = () => {
-    setResendTimer(60);
-    setOtp(['', '', '', '', '', '']);
-    setError('');
-    // Add resend OTP API call here if needed
+  const handleResend = async () => {
+    setResendLoading(true);
+    if (onError) onError('');
+    try {
+      await axiosInstance.post(`/user/${email}/generate-email-verification-otp`);
+      setResendTimer(60);
+      setOtp(['', '', '', '', '', '']);
+    } catch (err) {
+      console.error('OTP resend error:', err);
+      if (onError) onError(err.response?.data?.message || 'Failed to resend OTP. Try again.');
+    } finally {
+      setResendLoading(false);
+    }
   };
 
   return (
@@ -110,9 +118,9 @@ const OTPVerification = ({ email, onVerify, onBack, loading }) => {
             <button
               onClick={handleResend}
               className="text-indigo-600 hover:text-indigo-500 font-medium underline"
-              disabled={loading}
+              disabled={loading || resendLoading}
             >
-              Resend OTP
+              {resendLoading ? 'Sending...' : 'Resend OTP'}
             </button>
           )}
         </div>
