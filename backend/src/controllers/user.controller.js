@@ -4,7 +4,7 @@ import { Property } from "../models/property.model.js";
 import { Invitation } from "../models/invitation.model.js";
 import { Verification } from "../models/verification.model.js";
 import { generateToken } from "../utils/generate.token.js";
-import { axiosInstance } from "../lib/axios.js";
+import { flaskEmbeddingService } from "../lib/axios.js";
 import { v2 as cloudinary } from "cloudinary";
 import FormData from "form-data";
 import dotenv from "dotenv";
@@ -88,7 +88,7 @@ export const userSignup = async (req, res) => {
       contentType: imageFile.mimetype,
     });
 
-    const flaskRes = await axiosInstance.post("/extract-embedding", form, {
+    const flaskRes = await flaskEmbeddingService.post("/extract-embedding", form, {
       headers: {
         ...form.getHeaders(),
         "Content-Type": `multipart/form-data; boundary=${form.getBoundary()}`,
@@ -142,7 +142,7 @@ export const userSignup = async (req, res) => {
 };
 
 export const userLogin = async (req, res) => {
-  try {
+  try {    
     const { identifier, password } = req.body;
     let user;
     if (identifier.includes("@")) {

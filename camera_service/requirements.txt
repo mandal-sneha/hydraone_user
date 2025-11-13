@@ -1,0 +1,8 @@
+Flask
+opencv-python
+requests
+flask-cors
+Pillow
+dotenv
+torch
+facenet-pytorch

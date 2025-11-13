@@ -14,6 +14,7 @@ import Profile from './components/Profile.jsx';
 import ViewInvitation from './components/dashboardcomponents/ViewInvitation.jsx';
 import AddPropertyForm from './components/dashboardcomponents/addpropertycomponents/AddPropertyForm.jsx';
 import PropertyTenants from './components/dashboardcomponents/addpropertycomponents/PropertyTenants.jsx';
+import CameraMonitor from './components/CameraMonitor.jsx';
 
 const App = () => {
   return (
@@ -32,6 +33,15 @@ const App = () => {
                   <Profile />
                 </ThemeProvider>
               </UserIdRedirect>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/camera-monitor/:waterId"
+          element={
+            <ProtectedRoute>
+              <CameraMonitor />
             </ProtectedRoute>
           }
         />

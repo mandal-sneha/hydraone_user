@@ -12,7 +12,11 @@ const invitationSchema = new mongoose.Schema({
 
     invitedGuests: {
         type: Map,
-        of: String
+        of: {
+            type: String,
+            enum: ['pending', 'accepted', 'declined', 'arrived'],
+            default: 'pending'
+        }
     },
 
     arrivalTime: {
@@ -27,6 +31,11 @@ const invitationSchema = new mongoose.Schema({
 
     otp: {
         type: Map, 
+        of: String
+    },
+    
+    arrivalOtp: {
+        type: Map,
         of: String
     }
 }, { timestamps: true }); 
