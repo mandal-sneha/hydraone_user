@@ -36,7 +36,6 @@ const LoginPage = () => {
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify(userData));
 
-        alert('Login successful!');
         window.location.href = `/u/${userData.userId}`;
       }
     } catch (err) {

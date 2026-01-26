@@ -716,86 +716,78 @@ export const getFamilyMembers = async (req, res) => {
 export const fetchDashboardDetails = async (req, res) => {
   try {
     const { userid } = req.params;
-    const family = await Family.findOne({ members: userid });
-
-    if (!family) {
-      const user = await User.findOne({ userId: userid });
-      if (!user) {
-        return res.status(404).json({ success: false, message: "User not found" });
-      }
+    const user = await User.findOne({ userId: userid });
+    if (!user || !user.waterId) {
       return res.status(200).json({ success: true, hasWaterId: false });
     }
 
-    let latestDateStr = null;
-    if (family.waterUsage && family.waterUsage.size > 0) {
-      latestDateStr = Array.from(family.waterUsage.keys()).sort().pop();
-    }
+    const [rootId, tenantCode] = user.waterId.split("_");
+    const family = await Family.findOne({ rootId, tenantCode });
+    if (!family) return res.status(200).json({ success: true, hasWaterId: false });
 
-    const now = latestDateStr ? moment(latestDateStr).tz("Asia/Kolkata") : moment().tz("Asia/Kolkata");
-    
+    const now = moment().tz("Asia/Kolkata");
     const startOfMonth = now.clone().startOf('month');
-    const startOfWeek = now.clone().startOf('week');
     const startOfLastMonth = now.clone().subtract(1, 'month').startOf('month');
-    const endOfLastMonth = startOfLastMonth.clone().endOf('month');
+    const endOfLastMonth = now.clone().subtract(1, 'month').endOf('month');
 
     let waterUsedThisMonth = 0;
-    let waterUsedThisWeek = 0;
     let lastMonthWaterUsage = 0;
     let guestsThisMonth = 0;
+    let fraudLitres = 0;
 
-    if (family.waterUsage && family.waterUsage.size > 0) {
-      for (const [dateStr, usageValue] of family.waterUsage) {
-        const date = moment(dateStr, "YYYY-MM-DD", true);
-        if (date.isValid()) {
-          const usage = Number(usageValue) || 0;
-          if (date.isSameOrAfter(startOfMonth)) waterUsedThisMonth += usage;
-          if (date.isSameOrAfter(startOfWeek)) waterUsedThisWeek += usage;
-          if (date.isBetween(startOfLastMonth, endOfLastMonth, null, '[]')) lastMonthWaterUsage += usage;
-        }
+    if (family.waterUsage) {
+      for (const [dateStr, usageValue] of family.waterUsage.entries()) {
+        const date = moment(dateStr, "YYYY-MM-DD");
+        if (date.isSameOrAfter(startOfMonth)) waterUsedThisMonth += Number(usageValue) || 0;
+        if (date.isBetween(startOfLastMonth, endOfLastMonth, null, '[]')) lastMonthWaterUsage += Number(usageValue) || 0;
       }
     }
-    
-    if (family.guests && family.guests.size > 0) {
-      for (const [dateStr, guests] of family.guests) {
-        const date = moment(dateStr, "YYYY-MM-DD", true);
-        if (date.isValid() && date.isSameOrAfter(startOfMonth) && Array.isArray(guests)) {
+
+    if (family.guests) {
+      for (const [dateStr, guests] of family.guests.entries()) {
+        if (moment(dateStr).isSameOrAfter(startOfMonth) && Array.isArray(guests)) {
           guestsThisMonth += guests.length;
         }
       }
     }
 
-    const realNow = moment().tz("Asia/Kolkata");
-    const supplyTimes = [{ h: 8, t: "8 AM" }, { h: 12, t: "12 PM" }, { h: 15, t: "3 PM" }];
-    let nextSupply = { t: "8 AM (Tomorrow)", m: realNow.clone().add(1, 'day').startOf('day').hour(8) };
+    const invitation = await Invitation.findOne({ hostwaterId: user.waterId });
+    if (invitation && invitation.invitedGuests) {
+      for (const [guestId, status] of invitation.invitedGuests.entries()) {
+        if (status === "arrived") {
+          const stay = parseInt(invitation.stayDuration?.get(guestId)) || 0;
+          if (stay > 24) fraudLitres += 5;
+        }
+      }
+    }
 
+    const baseRate = 10;
+    const currentBill = (waterUsedThisMonth * baseRate) + (fraudLitres * baseRate);
+    const lastMonthBill = lastMonthWaterUsage * baseRate;
+
+    const supplyTimes = [{ h: 8, t: "8 AM" }, { h: 12, t: "12 PM" }, { h: 15, t: "3 PM" }];
+    let nextSupply = { t: "8 AM (Tomorrow)", m: now.clone().add(1, 'day').startOf('day').hour(8) };
     for (const supply of supplyTimes) {
-      const supplyMoment = realNow.clone().hour(supply.h).startOf('hour');
-      if (realNow.isBefore(supplyMoment)) {
+      const supplyMoment = now.clone().hour(supply.h).startOf('hour');
+      if (now.isBefore(supplyMoment)) {
         nextSupply = { t: supply.t, m: supplyMoment };
         break;
       }
     }
-    
+
     return res.status(200).json({
       success: true,
       hasWaterId: true,
       waterUsedThisMonth: Math.round(waterUsedThisMonth),
-      waterUsedThisWeek: Math.round(waterUsedThisWeek),
       guestsThisMonth,
-      billThisMonth: Math.round(waterUsedThisMonth * 10),
-      lastMonthBill: Math.round(lastMonthWaterUsage * 10),
+      billThisMonth: Math.round(currentBill),
+      lastMonthBill: Math.round(lastMonthBill),
       billStatus: "paid",
-      dueDate: now.clone().date(5).format("YYYY-MM-DD"),
       nextSupplyTime: nextSupply.t,
-      hoursUntilNext: Math.max(0, Math.ceil(nextSupply.m.diff(realNow, 'minutes') / 60)),
+      hoursUntilNext: Math.max(0, Math.ceil(nextSupply.m.diff(now, 'minutes') / 60))
     });
-
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error while fetching dashboard data",
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -995,5 +987,46 @@ export const verifyOtp = async (req, res) => {
       message: "Server error",
       error: error.message
     });
+  }
+};
+
+export const viewMonthwiseLiveBreakdown = async (req, res) => {
+  try {
+    const { waterid } = req.params;
+    const [rootId, tenantCode] = waterid.split("_");
+    const family = await Family.findOne({ rootId, tenantCode });
+    if (!family) {
+      return res.status(404).json({ success: false, message: "Data not found" });
+    }
+    const currentYear = new Date().getFullYear();
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const result = {};
+    monthNames.forEach(m => result[m] = { days: [], totalUsage: 0, totalFines: 0 });
+    if (family.waterUsage) {
+      for (const [dateStr, usage] of family.waterUsage.entries()) {
+        const date = new Date(dateStr);
+        if (date.getFullYear() === currentYear) {
+          const mName = monthNames[date.getMonth()];
+          const dayNum = date.getDate();
+          const hasFine = family.fineDates?.includes(dateStr) || false;
+          const guestList = family.guests?.get(dateStr) || [];
+          result[mName].days.push({
+            date: dayNum,
+            waterUsed: usage,
+            guests: guestList.length,
+            hasFine: hasFine,
+            fineAmount: hasFine ? 500 : 0
+          });
+          result[mName].totalUsage += usage;
+          if (hasFine) result[mName].totalFines += 1;
+        }
+      }
+    }
+    Object.keys(result).forEach(m => {
+      result[m].days.sort((a, b) => a.date - b.date);
+    });
+    return res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };

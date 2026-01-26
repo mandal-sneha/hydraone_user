@@ -15,7 +15,8 @@ import {
   FiMail,
   FiDroplet,
   FiLogOut,
-  FiSettings
+  FiSettings,
+  FiCamera
 } from 'react-icons/fi';
 import { TbLayoutSidebarLeftCollapse, TbLayoutSidebarRightCollapse } from "react-icons/tb";
 import { Outlet, useNavigate, useParams, useLocation } from 'react-router-dom';
@@ -50,10 +51,13 @@ export const ThemeProvider = ({ children }) => {
         : 'linear-gradient(to bottom, #6e8efb, #a777e3)',
       primaryBg: darkMode ? '#3a3a5e' : '#6e8efb',
       secondaryBg: darkMode ? '#4a4a6a' : '#cdb8f2',
-      hoverBg: 'rgba(255, 255, 255, 0.1)',
+      hoverBg: darkMode ? 'rgba(138, 116, 249, 0.15)' : 'rgba(110, 142, 251, 0.15)',
       borderColor: darkMode ? '#4a4a6a' : '#e0e0e0',
       mutedText: darkMode ? '#a0a0a0' : '#666666',
-      activeBg: darkMode ? '#4a4a6a' : '#e2dcff'
+      activeBg: darkMode ? 'rgba(138, 116, 249, 0.2)' : 'rgba(110, 142, 251, 0.2)',
+      shadowSm: darkMode ? '0 2px 4px rgba(0, 0, 0, 0.3)' : '0 2px 4px rgba(107, 70, 193, 0.1)',
+      shadowMd: darkMode ? '0 4px 8px rgba(0, 0, 0, 0.4)' : '0 4px 12px rgba(107, 70, 193, 0.15)',
+      shadowLg: darkMode ? '0 8px 16px rgba(0, 0, 0, 0.5)' : '0 8px 24px rgba(107, 70, 193, 0.2)'
     }
   };
 
@@ -203,25 +207,25 @@ const UserDashboard = () => {
   const DisabledTooltip = ({ children, message }) => (
     <div className="relative group">
       {children}
-      <div className="absolute left-full ml-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 top-1/2 transform -translate-y-1/2">
+      <div className="absolute left-full ml-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 top-1/2 transform -translate-y-1/2 shadow-lg">
         {message}
-        <div className="absolute right-full top-1/2 transform -translate-y-1/2 border-4 border-transparent border-r-gray-800"></div>
+        <div className="absolute right-full top-1/2 transform -translate-y-1/2 border-[6px] border-transparent border-r-gray-800"></div>
       </div>
     </div>
   );
 
   const isActiveRoute = (route) => location.pathname === route;
 
-  const MenuItem = ({ icon, label, route, disabled = false, tooltipMessage = '' }) => {
+  const MenuItem = ({ icon, label, route, disabled = false, tooltipMessage = '', navigationState = null }) => {
     const currentUserId = userData.userId || userid;
     const actualRoute = route ? route.replace(userid, currentUserId) : route;
     
     const content = (
       <div
-        className={`p-4 text-base flex items-center gap-4 rounded-md font-medium transition-all duration-200 ${
+        className={`p-4 text-base flex items-center gap-4 rounded-xl font-medium transition-all duration-300 ${
           disabled
-            ? 'text-gray-400 cursor-not-allowed opacity-60'
-            : 'cursor-pointer'
+            ? 'text-gray-400 cursor-not-allowed opacity-50'
+            : 'cursor-pointer transform hover:translate-x-1'
         } ${!sidebarOpen ? 'justify-center' : ''}`}
         style={{
           color: disabled
@@ -229,22 +233,26 @@ const UserDashboard = () => {
             : theme.colors.textColor,
           backgroundColor: isActiveRoute(actualRoute)
             ? theme.colors.activeBg
-            : 'transparent'
+            : 'transparent',
+          boxShadow: isActiveRoute(actualRoute) ? theme.colors.shadowSm : 'none',
+          borderLeft: isActiveRoute(actualRoute) ? `3px solid ${theme.darkMode ? '#8a74f9' : '#6e8efb'}` : '3px solid transparent'
         }}
-        onClick={() => !disabled && actualRoute && navigate(actualRoute)}
+        onClick={() => !disabled && actualRoute && navigate(actualRoute, { state: navigationState })}
         onMouseEnter={(e) => {
           if (!disabled && !isActiveRoute(actualRoute)) {
             e.currentTarget.style.background = theme.colors.hoverBg;
+            e.currentTarget.style.boxShadow = theme.colors.shadowSm;
           }
         }}
         onMouseLeave={(e) => {
           if (!disabled && !isActiveRoute(actualRoute)) {
             e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.boxShadow = 'none';
           }
         }}
       >
         <span className="text-xl">{icon}</span>
-        {sidebarOpen && label}
+        {sidebarOpen && <span className="font-semibold">{label}</span>}
       </div>
     );
 
@@ -265,7 +273,6 @@ const UserDashboard = () => {
         color: theme.colors.textColor
       }}
     >
-      {/* Sidebar */}
       <div
         className="flex flex-col flex-shrink-0 transition-all duration-300 gap-2 justify-between h-full relative"
         style={{
@@ -285,12 +292,12 @@ const UserDashboard = () => {
             {sidebarOpen ? (
               <>
                 <div 
-                  className="flex items-center justify-center rounded-full"
+                  className="flex items-center justify-center rounded-full transition-transform duration-300 hover:scale-110"
                   style={{
                     width: '40px',
                     height: '40px',
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)'
+                    boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
                   }}
                 >
                   <FiDroplet className="text-white text-xl" />
@@ -310,7 +317,7 @@ const UserDashboard = () => {
                 </div>
                 <button
                   onClick={toggleSidebar}
-                  className="absolute top-0 right-0 bg-transparent border-none text-xl transition-all duration-200 p-2 rounded-md hover:bg-opacity-20"
+                  className="absolute top-0 right-0 bg-transparent border-none text-xl transition-all duration-300 p-2 rounded-lg hover:rotate-180"
                   style={{
                     color: theme.colors.textColor
                   }}
@@ -327,7 +334,7 @@ const UserDashboard = () => {
             ) : (
               <button
                 onClick={toggleSidebar}
-                className="bg-transparent border-none text-2xl transition-all duration-200 p-3 rounded-md"
+                className="bg-transparent border-none text-2xl transition-all duration-300 p-3 rounded-lg hover:rotate-180"
                 style={{
                   color: theme.colors.textColor
                 }}
@@ -353,6 +360,14 @@ const UserDashboard = () => {
             route={`/u/${currentUserId}/water-registration`}
           />
           <MenuItem
+            icon={<FiCamera />}
+            label="Camera Monitor"
+            disabled={isWaterIdEmpty}
+            tooltipMessage="Please add a property or join as a tenant to access this feature"
+            route={`/u/${currentUserId}/camera-monitor`}
+            navigationState={{ waterId: userData.waterId }}
+          />
+          <MenuItem
             icon={<FiBarChart2 />}
             label="Usage Insights"
             disabled={isWaterIdEmpty}
@@ -363,25 +378,28 @@ const UserDashboard = () => {
 
         <div className="mt-auto pt-5 relative" ref={dropdownRef}>
           <div
-            className={`text-base font-bold text-center rounded-xl p-3 cursor-pointer transition-all duration-200 ${
+            className={`text-base font-bold text-center rounded-xl p-3 cursor-pointer transition-all duration-300 transform hover:scale-105 ${
               sidebarOpen ? 'flex items-center gap-3' : 'flex items-center justify-center'
             }`}
             style={{
               backgroundColor: theme.colors.secondaryBg,
               color: theme.colors.textColor,
+              boxShadow: theme.colors.shadowMd
             }}
             onClick={toggleProfileDropdown}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = theme.colors.hoverBg;
+              e.currentTarget.style.boxShadow = theme.colors.shadowLg;
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = theme.colors.secondaryBg;
+              e.currentTarget.style.boxShadow = theme.colors.shadowMd;
             }}
           >
             {sidebarOpen ? (
               <>
                 <div 
-                  className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden flex-shrink-0"
+                  className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden flex-shrink-0 ring-2 ring-white/20"
                   style={{
                     backgroundColor: userData.userProfilePhoto ? 'transparent' : theme.colors.mutedText,
                     minWidth: '32px',
@@ -400,7 +418,7 @@ const UserDashboard = () => {
               </>
             ) : (
               <div 
-                className="w-9 h-9 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden flex-shrink-0"
+                className="w-9 h-9 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden flex-shrink-0 ring-2 ring-white/20"
                 style={{
                   backgroundColor: userData.userProfilePhoto ? 'transparent' : theme.colors.mutedText,
                   minWidth: '36px',
@@ -420,18 +438,19 @@ const UserDashboard = () => {
 
           {profileDropdownOpen && (
             <div
-              className="absolute bottom-full mb-2 rounded-lg shadow-lg border overflow-hidden"
+              className="absolute bottom-full mb-2 rounded-xl shadow-2xl border overflow-hidden backdrop-blur-sm"
               style={{
                 backgroundColor: theme.colors.cardBg,
                 borderColor: theme.colors.borderColor,
                 width: sidebarOpen ? '100%' : '180px',
                 left: sidebarOpen ? '0' : '100%',
                 right: sidebarOpen ? 'auto' : '0',
-                zIndex: 1000
+                zIndex: 1000,
+                boxShadow: theme.colors.shadowLg
               }}
             >
               <div
-                className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-all duration-200"
+                className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-all duration-300 transform hover:translate-x-1"
                 style={{ color: theme.colors.textColor }}
                 onClick={handleProfile}
                 onMouseEnter={(e) => {
@@ -442,10 +461,10 @@ const UserDashboard = () => {
                 }}
               >
                 <FiSettings className="text-lg" />
-                <span>Profile</span>
+                <span className="font-semibold">Profile</span>
               </div>
               <div
-                className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-all duration-200"
+                className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-all duration-300 transform hover:translate-x-1"
                 style={{ color: theme.colors.textColor }}
                 onClick={handleLogout}
                 onMouseEnter={(e) => {
@@ -456,7 +475,7 @@ const UserDashboard = () => {
                 }}
               >
                 <FiLogOut className="text-lg" />
-                <span>Logout</span>
+                <span className="font-semibold">Logout</span>
               </div>
             </div>
           )}
@@ -465,19 +484,29 @@ const UserDashboard = () => {
 
       <div className="flex-grow min-w-0 flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: theme.colors.baseColor }}>
         <div 
-          className="flex justify-end items-center px-8 py-5 border-b"
+          className="flex justify-end items-center px-8 py-5 border-b backdrop-blur-sm"
           style={{
             borderColor: theme.colors.borderColor,
-            backgroundColor: theme.colors.baseColor
+            backgroundColor: theme.colors.baseColor,
+            boxShadow: theme.colors.shadowSm
           }}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <button
               onClick={handleInvitations}
-              className="bg-transparent border-none text-xl p-2 rounded-full transition-all duration-200 cursor-pointer"
-              style={{ color: theme.colors.textColor }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = theme.colors.hoverBg; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              className="bg-transparent border-none text-xl p-3 rounded-xl transition-all duration-300 cursor-pointer transform hover:scale-110"
+              style={{ 
+                color: theme.colors.textColor,
+                backgroundColor: 'transparent'
+              }}
+              onMouseEnter={(e) => { 
+                e.currentTarget.style.background = theme.colors.hoverBg;
+                e.currentTarget.style.boxShadow = theme.colors.shadowSm;
+              }}
+              onMouseLeave={(e) => { 
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
               title="View Invitations"
             >
               <FiMail />
@@ -485,10 +514,19 @@ const UserDashboard = () => {
 
             <button
               onClick={theme.toggleDarkMode}
-              className="bg-transparent border-none text-xl p-2 rounded-full transition-all duration-200"
-              style={{ color: theme.colors.textColor }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = theme.colors.hoverBg; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              className="bg-transparent border-none text-xl p-3 rounded-xl transition-all duration-300 transform hover:scale-110 hover:rotate-180"
+              style={{ 
+                color: theme.colors.textColor,
+                backgroundColor: 'transparent'
+              }}
+              onMouseEnter={(e) => { 
+                e.currentTarget.style.background = theme.colors.hoverBg;
+                e.currentTarget.style.boxShadow = theme.colors.shadowSm;
+              }}
+              onMouseLeave={(e) => { 
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
               title={theme.darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
               {theme.darkMode ? <FiSun /> : <FiMoon />}

@@ -90,7 +90,7 @@ export const registerForWater = async (req, res) => {
         }
 
         const currentIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-        const currentHour = currentIST.getHours();
+        const currentHour =  currentIST.getHours(); 
 
         let slot;
         if (currentHour < 8) {

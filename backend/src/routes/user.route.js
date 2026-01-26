@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { userSignup, userLogin, generateEmailVerificationOtp, addFamilyMember, verifyOtp, getCurrentDayGuests, viewInvitedGuests, viewMonthwiseDetails, getUser, getProfileDetails, getFamilyMembers, fetchDashboardDetails, updateUserProfile, getInsights } from "../controllers/user.controller.js";
+import { userSignup, userLogin, generateEmailVerificationOtp, addFamilyMember, verifyOtp, getCurrentDayGuests, viewInvitedGuests, viewMonthwiseDetails, getUser, getProfileDetails, getFamilyMembers, fetchDashboardDetails, updateUserProfile, getInsights, viewMonthwiseLiveBreakdown } from "../controllers/user.controller.js";
 
 const router = Router();
 
@@ -17,5 +17,6 @@ router.get("/:userid/get-profile-details", getProfileDetails);
 router.get("/:userid/get-family-members", getFamilyMembers);
 router.get("/:userid/dashboard", fetchDashboardDetails);
 router.get("/:waterid/get-insights", getInsights);
+router.get("/:waterid/monthly-breakdown-live", viewMonthwiseLiveBreakdown);
 
 export default router;

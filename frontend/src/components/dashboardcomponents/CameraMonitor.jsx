@@ -1,15 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { axiosInstance } from '../lib/axios';
-import { FiCamera, FiCheckCircle, FiAlertCircle, FiLoader, FiMapPin, FiLock } from 'react-icons/fi';
+import { axiosInstance } from '../../lib/axios.js';
+import { useTheme } from '../UserDashboard';
+import { FiCamera, FiLoader, FiMapPin, FiLock } from 'react-icons/fi';
 
 const socket = io(axiosInstance.defaults.baseURL, {
   withCredentials: true
 });
 
 const CameraMonitor = () => {
-  const { waterId } = useParams();
+  const location = useLocation();
+  const waterId = location.state?.waterId;
+  const theme = useTheme();
+  
   const [status, setStatus] = useState('Connecting...');
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [matchStatus, setMatchStatus] = useState('');
@@ -27,6 +31,11 @@ const CameraMonitor = () => {
   const processingIntervalRef = useRef(null);
 
   useEffect(() => {
+    if (!waterId) {
+      setStatus('Error: Water ID not found. Please navigate from the dashboard.');
+      return;
+    }
+
     socket.on('connect', () => {
       setStatus(`Connected. Registering camera for ${waterId}...`);
       socket.emit('register-camera', waterId);
@@ -68,7 +77,7 @@ const CameraMonitor = () => {
         video: { 
           width: { ideal: 1280 },
           height: { ideal: 720 },
-          facingMode: 'user'
+          aspectRatio: { ideal: 1.7777777778 }
         } 
       });
       streamRef.current = stream;
@@ -149,7 +158,7 @@ const CameraMonitor = () => {
       formData.append('userId', guestId);
 
       try {
-        setMatchStatus('🔍 Analyzing frame...');
+        setMatchStatus('Analyzing frame...');
         
         const res = await axiosInstance.post(`/camera/${waterId}/verify-arrival`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
@@ -157,7 +166,7 @@ const CameraMonitor = () => {
         });
 
         if (res.data.match) {
-          setMatchStatus(`✅ Match found! Score: ${res.data.score.toFixed(2)}. Sending OTP...`);
+          setMatchStatus(`Face Verified! Sending OTP...`);
           stopCamera();
           setGuestEmail(res.data.guestEmail);
           setShowOtpForm(true);
@@ -168,13 +177,13 @@ const CameraMonitor = () => {
         }
       } catch (err) {
         if (err.code === 'ECONNABORTED') {
-          setMatchStatus('⏱️ Request timeout. Retrying...');
+          setMatchStatus('Request timeout. Retrying...');
         } else if (err.response?.status === 503) {
-          setMatchStatus('⚠️ Camera service unavailable. Retrying...');
+          setMatchStatus('Camera service unavailable. Retrying...');
         } else if (err.response) {
-          setMatchStatus(`❌ Error: ${err.response.data?.message || 'Unknown error'}`);
+          setMatchStatus(`Error: ${err.response.data?.message || 'Unknown error'}`);
         } else {
-          setMatchStatus('🔄 Connection error. Retrying...');
+          setMatchStatus('Connection error. Retrying...');
         }
       } finally {
         setIsProcessing(false);
@@ -209,7 +218,7 @@ const CameraMonitor = () => {
       });
 
       if (res.data.success) {
-        setStatus(`✅ Welcome, ${arrivingGuestId}!`);
+        setStatus(`Welcome, ${arrivingGuestId}!`);
         setMatchStatus('Verification complete!');
         setShowOtpForm(false);
         setArrivingGuestId(null);
@@ -234,98 +243,126 @@ const CameraMonitor = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
-      <div className="w-full max-w-2xl bg-gray-800 rounded-2xl shadow-2xl p-8 border border-gray-700">
-        
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-indigo-400">Camera Monitor</h1>
-          <p className="text-gray-400">Property: {waterId}</p>
+    <div 
+      className="flex flex-col items-center justify-center min-h-screen w-full p-4"
+      style={{ 
+        backgroundColor: 'transparent',
+        overflow: 'hidden' 
+      }}
+    >
+      <style>
+        {`
+          ::-webkit-scrollbar {
+            display: none;
+          }
+          * {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+        `}
+      </style>
+      <div 
+        className="w-full max-w-4xl rounded-3xl shadow-2xl p-8 border transition-all duration-300 flex flex-col gap-6"
+        style={{ 
+          backgroundColor: theme.colors.cardBg,
+          borderColor: theme.colors.borderColor,
+          boxShadow: theme.colors.shadowLg,
+        }}
+      >
+        <div className="text-center">
+          <h1 
+            className="text-4xl font-extrabold mb-2"
+            style={{ color: theme.darkMode ? '#8a74f9' : '#6e8efb' }}
+          >
+            Camera Monitor
+          </h1>
+          <p className="text-lg opacity-80" style={{ color: theme.colors.mutedText }}>
+            Property ID: <span className="font-mono font-bold">{waterId || 'N/A'}</span>
+          </p>
         </div>
 
-        <div className="relative w-full aspect-video bg-gray-900 rounded-lg overflow-hidden mb-4 border-2 border-gray-700 flex items-center justify-center">
-          <video 
-            ref={videoRef} 
-            autoPlay 
-            playsInline 
-            muted 
-            className="w-full h-full object-cover"
-          ></video>
-          {!isCameraActive && (
-            <div className="absolute flex flex-col items-center text-gray-500">
-              <FiCamera size={64} />
-              <p className="mt-2 text-lg">Camera is Offline</p>
-            </div>
-          )}
-          {isProcessing && (
-            <div className="absolute top-4 right-4 bg-blue-600 px-3 py-1 rounded-full text-sm flex items-center gap-2">
-              <FiLoader className="animate-spin" />
-              Processing...
-            </div>
-          )}
-          <canvas ref={canvasRef} className="hidden"></canvas>
-        </div>
+        <div className="flex flex-col gap-6">
+          <div 
+            className="relative w-full aspect-video rounded-2xl overflow-hidden border-2 flex items-center justify-center shadow-inner mx-auto"
+            style={{ 
+              backgroundColor: theme.darkMode ? '#1a1a2e' : '#f0f0f0',
+              borderColor: theme.colors.borderColor,
+            }}
+          >
+            <video 
+              ref={videoRef} 
+              autoPlay 
+              playsInline 
+              muted 
+              className="w-full h-full object-cover"
+            ></video>
+            {!isCameraActive && (
+              <div className="absolute flex flex-col items-center" style={{ color: theme.colors.mutedText }}>
+                <FiCamera size={64} className="opacity-20 mb-4" />
+                <p className="text-xl font-semibold">Camera Standby</p>
+              </div>
+            )}
+            {isProcessing && (
+              <div 
+                className="absolute top-4 right-4 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 animate-pulse shadow-lg"
+                style={{ backgroundColor: theme.colors.primaryBg, color: '#fff' }}
+              >
+                <FiLoader className="animate-spin" />
+                ANALYZING
+              </div>
+            )}
+            <canvas ref={canvasRef} className="hidden"></canvas>
+          </div>
 
-        <div className="text-center p-4 rounded-lg bg-gray-700 min-h-[100px] flex flex-col justify-center">
-          <p className="text-lg font-medium text-gray-300">Status</p>
-          <p className="text-xl font-bold text-white">{status}</p>
-          {matchStatus && (
-            <p className="text-lg text-indigo-400 mt-2">{matchStatus}</p>
-          )}
+          <div 
+            className="text-center p-6 rounded-2xl border"
+            style={{ 
+              backgroundColor: theme.colors.activeBg,
+              borderColor: theme.colors.borderColor
+            }}
+          >
+            <p className="text-xs uppercase tracking-widest font-bold mb-1 opacity-60" style={{ color: theme.colors.mutedText }}>System Status</p>
+            <p className="text-xl font-bold" style={{ color: theme.colors.textColor }}>{status}</p>
+            {matchStatus && (
+              <p className="text-lg font-semibold mt-2" style={{ color: theme.darkMode ? '#8a74f9' : '#6e8efb' }}>{matchStatus}</p>
+            )}
+          </div>
         </div>
 
         {showOtpForm && (
-          <form onSubmit={handleOtpSubmit} className="mt-6">
-            <h2 className="text-2xl font-semibold text-center text-green-400 mb-4">Verification Required</h2>
-            <p className="text-center text-gray-300 mb-4">
-              {guestEmail 
-                ? `An OTP has been sent to the email ${maskEmail(guestEmail)}. ` 
-                : 'An OTP has been sent to the guest\'s email. '
-              }
-              Please enter it below and allow location access.
-            </p>
-            
-            <div className="mb-4">
-              <label htmlFor="otp" className="block text-sm font-medium text-gray-400 mb-2">
-                Enter OTP
-              </label>
+          <form onSubmit={handleOtpSubmit} className="p-6 rounded-2xl border-2 border-dashed flex-shrink-0 animate-in fade-in zoom-in duration-300" style={{ borderColor: theme.colors.primaryBg }}>
+            <h2 className="text-xl font-bold text-center mb-4" style={{ color: theme.colors.textColor }}>Verify Guest Identity</h2>
+            <div className="mb-6">
               <div className="relative">
-                <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                <FiLock 
+                  className="absolute left-4 top-1/2 -translate-y-1/2" 
+                  style={{ color: theme.colors.mutedText }}
+                />
                 <input
                   type="text"
                   id="otp"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
-                  placeholder="6-Digit Code"
+                  className="w-full pl-12 pr-4 py-4 rounded-xl focus:outline-none font-mono text-center text-2xl tracking-[0.5em]"
+                  style={{ 
+                    backgroundColor: theme.colors.baseColor,
+                    color: theme.colors.textColor,
+                    border: `2px solid ${theme.colors.borderColor}`
+                  }}
+                  placeholder="000000"
                   maxLength={6}
-                  disabled={isVerifying}
                 />
               </div>
             </div>
 
-            {otpError && (
-              <div className="flex items-center gap-2 text-red-400 bg-red-900/50 p-3 rounded-lg mb-4">
-                <FiAlertCircle />
-                <span>{otpError}</span>
-              </div>
-            )}
-
             <button
               type="submit"
               disabled={isVerifying}
-              className="w-full flex items-center justify-center gap-3 py-3 px-6 bg-indigo-600 rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-xl font-bold text-lg transition-all shadow-lg hover:brightness-110 active:scale-95"
+              style={{ backgroundColor: theme.colors.primaryBg, color: '#ffffff' }}
             >
-              {isVerifying ? (
-                <>
-                  <FiLoader className="animate-spin" />
-                  Verifying...
-                </>
-              ) : (
-                <>
-                  <FiMapPin />
-                  Verify OTP & Location
-                </>
-              )}
+              {isVerifying ? <FiLoader className="animate-spin" /> : <FiMapPin />}
+              {isVerifying ? 'VERIFYING...' : 'AUTHORIZE ENTRY'}
             </button>
           </form>
         )}
