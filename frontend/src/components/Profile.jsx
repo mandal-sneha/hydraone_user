@@ -6,17 +6,7 @@ import UserDetails from './profilepagecomponents/UserDetails.jsx';
 import CurrentProperty from './profilepagecomponents/CurrentProperty.jsx';
 import FamilyMemberDetails from './profilepagecomponents/FamilyMemberDetails.jsx';
 
-const useTheme = () => {
-  const colors = {
-    baseColor: '#f8fafc', cardBg: '#ffffff', textColor: '#1e293b', mutedText: '#64748b',
-    borderColor: '#e2e8f0', primaryBg: '#3b82f6', primaryHover: '#2563eb', secondaryBg: '#6366f1',
-    secondaryHover: '#4f46e5', accent: '#10b981', accentHover: '#059669', danger: '#ef4444', dangerHover: '#dc2626'
-  };
-  return { colors };
-};
-
 const Profile = () => {
-  const { colors } = useTheme();
   const { userid } = useParams();
 
   const [user, setUser] = useState({
@@ -52,7 +42,7 @@ const Profile = () => {
         setFamilyMembers(transformedMembers);
       }
     } catch (err) {
-      console.error('Error fetching family members:', err);
+      console.error(err);
     } finally {
       setFamilyMembersLoading(false);
     }
@@ -108,7 +98,6 @@ const Profile = () => {
       } catch (err) {
         setError('Failed to fetch profile details');
         setLoading(false);
-        console.error('Error fetching profile:', err);
       }
     };
 
@@ -120,185 +109,95 @@ const Profile = () => {
   const handleSave = async () => {
     try {
       setUpdateLoading(true);
-      setError(null);
-
-      const storedUser = JSON.parse(localStorage.getItem('user'));
-      const userIdToUpdate = userid || storedUser?.userId;
-
-      if (!userIdToUpdate) {
-        setError('User ID not found');
-        return;
-      }
-
-      const updateData = {
-        userName: editedUser.userName?.trim(),
-        userProfilePhoto: editedUser.userProfilePhoto,
-        email: editedUser.email?.trim(),
-        userId: editedUser.userId?.trim()
-      };
-
-      const response = await axiosInstance.put(`/user/${userIdToUpdate}/update-profile`, updateData);
-
-      if (response.data.success) {
-        const updatedUserData = response.data.user;
-        const newUser = {
-          userId: updatedUserData.userId,
-          userName: updatedUserData.userName,
-          userProfilePhoto: updatedUserData.userProfilePhoto,
-          aadharNo: updatedUserData.adhaarNumber?.toString() || user.aadharNo,
-          email: updatedUserData.email,
-          address: user.address,
-          waterId: updatedUserData.waterId || user.waterId
-        };
-
-        setUser(newUser);
-        setEditedUser(newUser);
-        setIsEditing(false);
-
-        const updatedStoredUser = {
-          email: updatedUserData.email,
-          userId: updatedUserData.userId,
-          userName: updatedUserData.userName,
-          waterId: updatedUserData.waterId
-        };
-        localStorage.setItem('user', JSON.stringify(updatedStoredUser));
-      } else {
-        setError(response.data.message || 'Failed to update profile');
-      }
+      await axiosInstance.put(`/user/${user.userId}/update-profile`, editedUser);
+      setUser(editedUser);
+      setIsEditing(false);
     } catch (err) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to update profile';
-      setError(errorMessage);
+      console.error(err);
     } finally {
       setUpdateLoading(false);
     }
   };
 
-  const handleCancel = () => { setEditedUser({ ...user }); setIsEditing(false); };
-  const handleInputChange = (field, value) => { setEditedUser(prev => ({ ...prev, [field]: value })); };
-  const toggleMemberExpansion = (userId) => { setExpandedMember(expandedMember === userId ? null : userId); };
-
-  const handleImageUpload = (event) => {
-    const file = event.target.files[0];
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const newUser = { ...editedUser, userProfilePhoto: e.target.result };
-        setEditedUser(newUser);
-        if (!isEditing) setUser(newUser);
-      };
-      reader.readAsDataURL(file);
+      const imageUrl = URL.createObjectURL(file);
+      setEditedUser(prev => ({ ...prev, userProfilePhoto: imageUrl }));
     }
-  };
-
-  const handleDeleteMember = (userId) => {
-    setFamilyMembers(prev => prev.filter(member => member.userId !== userId));
-    if (expandedMember === userId) setExpandedMember(null);
-  };
-
-  const handleAddMember = async () => {
-    if (newMemberUserId.trim()) {
-      try {
-        const storedUser = JSON.parse(localStorage.getItem('user'));
-        const currentUserId = userid || storedUser?.userId;
-
-        const response = await axiosInstance.post(`/user/${currentUserId}/${newMemberUserId.trim()}/add-family-member`);
-
-        if (response.status === 200) {
-          await fetchFamilyMembers(currentUserId);
-          setNewMemberUserId('');
-          setShowAddMember(false);
-        }
-      } catch (err) {
-        console.error('Error adding family member:', err);
-        setError('Failed to add family member');
-      }
-    }
-  };
-
-  const sharedProps = {
-    user, setUser, isEditing, setIsEditing, editedUser, setEditedUser,
-    handleEdit, handleSave, handleCancel, handleInputChange, handleImageUpload,
-    familyMembers, setFamilyMembers, expandedMember, setExpandedMember,
-    toggleMemberExpansion, handleDeleteMember, handleAddMember,
-    showAddMember, setShowAddMember, newMemberUserId, setNewMemberUserId,
-    selectedProperty, setSelectedProperty, properties, colors, familyMembersLoading,
-    updateLoading
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.baseColor }}>
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading profile...</p>
-        </div>
+      <div className="p-8">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.baseColor }}>
-        <div className="text-center">
-          <p className="text-red-500 text-lg mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Retry
-          </button>
-        </div>
+      <div className="p-8">
+        <p className="text-lg mb-4">{error}</p>
+        <button onClick={() => window.location.reload()} className="px-4 py-2 rounded">
+          Retry
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: colors.baseColor }}>
-      <div className="relative bg-gradient-to-br from-blue-100 via-purple-50 to-indigo-100 border-b border-gray-200">
-        <div className="px-6 py-12">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
-              <div className="relative flex-shrink-0">
-                <div className="relative">
-                  {(isEditing ? editedUser.userProfilePhoto : user.userProfilePhoto) ? (
-                    <img src={isEditing ? editedUser.userProfilePhoto : user.userProfilePhoto} alt="Profile" className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg" />
-                  ) : (
-                    <div className="w-32 h-32 rounded-full flex items-center justify-center text-white font-bold text-3xl border-4 border-white bg-gradient-to-br from-blue-400 to-purple-500 shadow-lg">
-                      {(isEditing ? editedUser.userName : user.userName).charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  {isEditing && (
-                    <label className="absolute bottom-1 right-1 p-3 bg-blue-500 rounded-full cursor-pointer hover:bg-blue-600 transition-colors border-3 border-white shadow-md">
-                      <FaCamera className="text-white" size={16} />
-                      <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                    </label>
-                  )}
-                </div>
-              </div>
-              <div className="flex-1 text-center md:text-left">
-                <h1 className="text-4xl font-bold text-gray-900 mb-2">{(isEditing ? editedUser.userName : user.userName)}</h1>
-                <p className="text-xl text-gray-700 mb-1 font-medium">User ID: {user.userId}</p>
-                <p className="text-lg text-gray-600 mb-1">Water ID: {user.waterId}</p>
-                <p className="text-lg text-gray-600">{user.email}</p>
-              </div>
+    <div className="p-6 space-y-6">
+      <div className="flex flex-col md:flex-row items-center gap-8">
+        <div className="relative">
+          {(isEditing ? editedUser.userProfilePhoto : user.userProfilePhoto) ? (
+            <img src={isEditing ? editedUser.userProfilePhoto : user.userProfilePhoto} alt="Profile" className="w-32 h-32 rounded-full object-cover" />
+          ) : (
+            <div className="w-32 h-32 rounded-full flex items-center justify-center font-bold text-3xl bg-gray-200 text-gray-600">
+              {(isEditing ? editedUser.userName : user.userName) ? (isEditing ? editedUser.userName : user.userName).charAt(0).toUpperCase() : <FaCamera />}
             </div>
-          </div>
+          )}
+          {isEditing && (
+            <label className="absolute bottom-1 right-1 p-3 rounded-full cursor-pointer bg-white shadow-md hover:bg-gray-100 transition-colors">
+              <FaCamera size={16} className="text-gray-700" />
+              <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+            </label>
+          )}
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold">{(isEditing ? editedUser.userName : user.userName)}</h1>
+          <p>User ID: {user.userId}</p>
+          <p>Water ID: {user.waterId}</p>
+          <p>{user.email}</p>
         </div>
       </div>
 
-      <div className="px-6 py-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="w-full space-y-8 lg:col-span-2">
-              <UserDetails {...sharedProps} />
-              <CurrentProperty {...sharedProps} />
-            </div>
-            <div className="w-full lg:col-span-1">
-              <FamilyMemberDetails {...sharedProps} />
-            </div>
-          </div>
-        </div>
-      </div>
+      <UserDetails
+        user={user}
+        editedUser={editedUser}
+        isEditing={isEditing}
+        setEditedUser={setEditedUser}
+        handleEdit={handleEdit}
+        handleSave={handleSave}
+        updateLoading={updateLoading}
+      />
+
+      <CurrentProperty
+        properties={properties}
+        selectedProperty={selectedProperty}
+        setSelectedProperty={setSelectedProperty}
+      />
+
+      <FamilyMemberDetails
+        familyMembers={familyMembers}
+        expandedMember={expandedMember}
+        setExpandedMember={setExpandedMember}
+        showAddMember={showAddMember}
+        setShowAddMember={setShowAddMember}
+        newMemberUserId={newMemberUserId}
+        setNewMemberUserId={setNewMemberUserId}
+        familyMembersLoading={familyMembersLoading}
+      />
     </div>
   );
 };

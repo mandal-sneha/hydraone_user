@@ -25,19 +25,6 @@ const App = () => {
         <Route path="/signup" element={<SignupPage />} />
         
         <Route
-          path="/u/:userid/profile"
-          element={
-            <ProtectedRoute>
-              <UserIdRedirect>
-                <ThemeProvider>
-                  <Profile />
-                </ThemeProvider>
-              </UserIdRedirect>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
           path="/u/:userid"
           element={
             <ProtectedRoute>
@@ -50,6 +37,7 @@ const App = () => {
           }
         >
           <Route index element={<DashboardHome />} />
+          <Route path="profile" element={<Profile />} />
           <Route path="water-registration" element={<WaterRegistration />} />
           <Route path="add-property" element={<AddProperty />} /> 
           <Route path="usage-insights" element={<UsageInsights/>} />         

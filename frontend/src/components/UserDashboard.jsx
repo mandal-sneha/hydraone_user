@@ -76,6 +76,32 @@ export const useTheme = () => {
   return context;
 };
 
+const ProfileAvatar = ({ src, alt, className, iconSize = 20, theme }) => {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setHasError(false);
+  }, [src]);
+
+  if (!src || hasError) {
+    return (
+      <div className={`flex items-center justify-center w-full h-full ${className}`} style={{ color: theme.colors.textColor }}>
+        <FiUser size={iconSize} />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      onError={() => setHasError(true)}
+      style={{ display: 'block' }} // Ensure it's not hidden by parent styles
+    />
+  );
+};
+
 const UserDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -103,10 +129,11 @@ const UserDashboard = () => {
         const newUserData = {
           userName: parsed.userName || '',
           userId: parsed.userId || '',
-          waterId: parsed.waterId || ''
+          waterId: parsed.waterId || '',
+          userProfilePhoto: parsed.userProfilePhoto || ''
         };
         setUserData(prevData => ({ ...prevData, ...newUserData }));
-        
+
         if (parsed.userId && parsed.userId !== userid) {
           const currentPath = location.pathname;
           const newPath = currentPath.replace(`/u/${userid}`, `/u/${parsed.userId}`);
@@ -117,7 +144,7 @@ const UserDashboard = () => {
       }
     }
   }, [userid, location.pathname, navigate]);
-  
+
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (userData.userId) {
@@ -134,7 +161,7 @@ const UserDashboard = () => {
         }
       }
     };
-  
+
     fetchUserProfile();
   }, [userData.userId]);
 
@@ -148,10 +175,11 @@ const UserDashboard = () => {
             const newUserData = {
               userName: parsed.userName || '',
               userId: parsed.userId || '',
-              waterId: parsed.waterId || ''
+              waterId: parsed.waterId || '',
+              userProfilePhoto: parsed.userProfilePhoto || ''
             };
             setUserData(prevData => ({ ...prevData, ...newUserData }));
-            
+
             if (parsed.userId && parsed.userId !== userid) {
               const currentPath = location.pathname;
               const newPath = currentPath.replace(`/u/${userid}`, `/u/${parsed.userId}`);
@@ -219,14 +247,13 @@ const UserDashboard = () => {
   const MenuItem = ({ icon, label, route, disabled = false, tooltipMessage = '', navigationState = null }) => {
     const currentUserId = userData.userId || userid;
     const actualRoute = route ? route.replace(userid, currentUserId) : route;
-    
+
     const content = (
       <div
-        className={`p-4 text-base flex items-center gap-4 rounded-xl font-medium transition-all duration-300 ${
-          disabled
-            ? 'text-gray-400 cursor-not-allowed opacity-50'
-            : 'cursor-pointer transform hover:translate-x-1'
-        } ${!sidebarOpen ? 'justify-center' : ''}`}
+        className={`p-4 text-base flex items-center gap-4 rounded-xl font-medium transition-all duration-300 ${disabled
+          ? 'text-gray-400 cursor-not-allowed opacity-50'
+          : 'cursor-pointer transform hover:translate-x-1'
+          } ${!sidebarOpen ? 'justify-center' : ''}`}
         style={{
           color: disabled
             ? theme.colors.mutedText
@@ -282,16 +309,16 @@ const UserDashboard = () => {
         }}
       >
         <div className="flex flex-col gap-2">
-          <div 
+          <div
             className={`mb-6 relative ${sidebarOpen ? 'flex items-center gap-3' : 'flex justify-center'}`}
-            style={{ 
+            style={{
               padding: sidebarOpen ? '1rem 0' : '0.5rem 0',
               marginBottom: '1rem'
             }}
           >
             {sidebarOpen ? (
               <>
-                <div 
+                <div
                   className="flex items-center justify-center rounded-full transition-transform duration-300 hover:scale-110"
                   style={{
                     width: '40px',
@@ -303,7 +330,7 @@ const UserDashboard = () => {
                   <FiDroplet className="text-white text-xl" />
                 </div>
                 <div className="flex flex-col">
-                  <h1 
+                  <h1
                     className="text-2xl font-bold"
                     style={{
                       fontFamily: 'Inter, system-ui, sans-serif',
@@ -313,7 +340,7 @@ const UserDashboard = () => {
                   >
                     HydraOne
                   </h1>
-                  
+
                 </div>
                 <button
                   onClick={toggleSidebar}
@@ -378,9 +405,8 @@ const UserDashboard = () => {
 
         <div className="mt-auto pt-5 relative" ref={dropdownRef}>
           <div
-            className={`text-base font-bold text-center rounded-xl p-3 cursor-pointer transition-all duration-300 transform hover:scale-105 ${
-              sidebarOpen ? 'flex items-center gap-3' : 'flex items-center justify-center'
-            }`}
+            className={`text-base font-bold text-center rounded-xl p-3 cursor-pointer transition-all duration-300 transform hover:scale-105 ${sidebarOpen ? 'flex items-center gap-3' : 'flex items-center justify-center'
+              }`}
             style={{
               backgroundColor: theme.colors.secondaryBg,
               color: theme.colors.textColor,
@@ -398,40 +424,40 @@ const UserDashboard = () => {
           >
             {sidebarOpen ? (
               <>
-                <div 
-                  className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden flex-shrink-0 ring-2 ring-white/20"
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 ring-2 ring-white/20"
                   style={{
-                    backgroundColor: userData.userProfilePhoto ? 'transparent' : theme.colors.mutedText,
+                    backgroundColor: theme.colors.cardBg,
                     minWidth: '32px',
                     minHeight: '32px'
                   }}
                 >
-                  {userData.userProfilePhoto ? (
-                    <img 
-                      src={userData.userProfilePhoto} 
-                      alt={userData.userName || 'User'} 
-                      className="w-full h-full object-cover" 
-                    />
-                  ) : null}
+                  <ProfileAvatar
+                    src={userData.userProfilePhoto}
+                    alt={userData.userName || 'User'}
+                    className="w-full h-full object-cover"
+                    iconSize={18}
+                    theme={theme}
+                  />
                 </div>
                 <span className="text-lg">{userData.userName || 'Guest'}</span>
               </>
             ) : (
-              <div 
-                className="w-9 h-9 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden flex-shrink-0 ring-2 ring-white/20"
+              <div
+                className="w-9 h-9 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 ring-2 ring-white/20"
                 style={{
-                  backgroundColor: userData.userProfilePhoto ? 'transparent' : theme.colors.mutedText,
+                  backgroundColor: theme.colors.cardBg,
                   minWidth: '36px',
                   minHeight: '36px'
                 }}
               >
-                {userData.userProfilePhoto ? (
-                  <img 
-                    src={userData.userProfilePhoto} 
-                    alt={userData.userName || 'User'} 
-                    className="w-full h-full object-cover" 
-                  />
-                ) : null}
+                <ProfileAvatar
+                  src={userData.userProfilePhoto}
+                  alt={userData.userName || 'User'}
+                  className="w-full h-full object-cover"
+                  iconSize={20}
+                  theme={theme}
+                />
               </div>
             )}
           </div>
@@ -483,7 +509,7 @@ const UserDashboard = () => {
       </div>
 
       <div className="flex-grow min-w-0 flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: theme.colors.baseColor }}>
-        <div 
+        <div
           className="flex justify-end items-center px-8 py-5 border-b backdrop-blur-sm"
           style={{
             borderColor: theme.colors.borderColor,
@@ -495,15 +521,15 @@ const UserDashboard = () => {
             <button
               onClick={handleInvitations}
               className="bg-transparent border-none text-xl p-3 rounded-xl transition-all duration-300 cursor-pointer transform hover:scale-110"
-              style={{ 
+              style={{
                 color: theme.colors.textColor,
                 backgroundColor: 'transparent'
               }}
-              onMouseEnter={(e) => { 
+              onMouseEnter={(e) => {
                 e.currentTarget.style.background = theme.colors.hoverBg;
                 e.currentTarget.style.boxShadow = theme.colors.shadowSm;
               }}
-              onMouseLeave={(e) => { 
+              onMouseLeave={(e) => {
                 e.currentTarget.style.background = 'transparent';
                 e.currentTarget.style.boxShadow = 'none';
               }}
@@ -515,15 +541,15 @@ const UserDashboard = () => {
             <button
               onClick={theme.toggleDarkMode}
               className="bg-transparent border-none text-xl p-3 rounded-xl transition-all duration-300 transform hover:scale-110 hover:rotate-180"
-              style={{ 
+              style={{
                 color: theme.colors.textColor,
                 backgroundColor: 'transparent'
               }}
-              onMouseEnter={(e) => { 
+              onMouseEnter={(e) => {
                 e.currentTarget.style.background = theme.colors.hoverBg;
                 e.currentTarget.style.boxShadow = theme.colors.shadowSm;
               }}
-              onMouseLeave={(e) => { 
+              onMouseLeave={(e) => {
                 e.currentTarget.style.background = 'transparent';
                 e.currentTarget.style.boxShadow = 'none';
               }}
@@ -541,10 +567,10 @@ const UserDashboard = () => {
         </div>
       </div>
 
-      <ViewInvitation 
-        isOpen={invitationModalOpen} 
-        onClose={() => setInvitationModalOpen(false)} 
-        theme={theme} 
+      <ViewInvitation
+        isOpen={invitationModalOpen}
+        onClose={() => setInvitationModalOpen(false)}
+        theme={theme}
       />
     </div>
   );
