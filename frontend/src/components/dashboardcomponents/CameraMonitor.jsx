@@ -6,14 +6,15 @@ import { useTheme } from '../UserDashboard';
 import { FiCamera, FiLoader, FiMapPin, FiLock } from 'react-icons/fi';
 
 const socket = io(axiosInstance.defaults.baseURL, {
-  withCredentials: true
+  withCredentials: true,
+  reconnection: true,
+  reconnectionAttempts: Infinity
 });
 
 const CameraMonitor = () => {
   const location = useLocation();
   const waterId = location.state?.waterId;
   const theme = useTheme();
-  
   const [status, setStatus] = useState('Connecting...');
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [matchStatus, setMatchStatus] = useState('');
@@ -32,75 +33,56 @@ const CameraMonitor = () => {
 
   useEffect(() => {
     if (!waterId) {
-      setStatus('Error: Water ID not found. Please navigate from the dashboard.');
+      setStatus('Error: Water ID not found.');
       return;
     }
 
-    socket.on('connect', () => {
-      setStatus(`Connected. Registering camera for ${waterId}...`);
+    const onConnect = () => {
+      setStatus(`System Active • ${waterId}`);
       socket.emit('register-camera', waterId);
-      setStatus(`Camera registered for ${waterId}. Waiting for guest arrival...`);
-    });
+    };
 
-    socket.on('activate-camera', (data) => {
-      setStatus(`Guest ${data.userId} is due. Activating camera...`);
+    const onActivate = (data) => {
+      setStatus(`Guest ${data.userId} Detected`);
       setArrivingGuestId(data.userId);
       setMatchStatus('');
       setShowOtpForm(false);
-      setGuestEmail('');
       startCamera(data.userId);
-    });
+    };
 
-    socket.on('disconnect', () => {
-      setStatus('Disconnected. Trying to reconnect...');
-    });
+    socket.on('connect', onConnect);
+    socket.on('activate-camera', onActivate);
+
+    if (socket.connected) onConnect();
 
     return () => {
-      socket.off('connect');
-      socket.off('activate-camera');
-      socket.off('disconnect');
+      socket.off('connect', onConnect);
+      socket.off('activate-camera', onActivate);
       stopCamera();
     };
   }, [waterId]);
 
   const startCamera = async (guestId) => {
-    if (streamRef.current) {
-      stopCamera();
-    }
-    if (processingIntervalRef.current) {
-      clearInterval(processingIntervalRef.current);
-      processingIntervalRef.current = null;
-    }
-
+    if (streamRef.current) stopCamera();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          aspectRatio: { ideal: 1.7777777778 }
-        } 
+        video: { width: 1280, height: 720 } 
       });
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        
         videoRef.current.onloadedmetadata = () => {
           videoRef.current.play().then(() => {
             setIsCameraActive(true);
-            setMatchStatus('Camera active. Looking for face...');
-            
+            if (processingIntervalRef.current) clearInterval(processingIntervalRef.current);
             processingIntervalRef.current = setInterval(() => {
               captureAndVerify(guestId);
             }, 3000);
-
-          }).catch(err => {
-            setMatchStatus('Failed to start video playback');
           });
         };
       }
     } catch (err) {
-      setStatus('Failed to start camera. Please grant permission.');
-      setMatchStatus('Camera permission denied.');
+      setMatchStatus('Camera access denied.');
     }
   };
 
@@ -114,38 +96,19 @@ const CameraMonitor = () => {
       processingIntervalRef.current = null;
     }
     setIsCameraActive(false);
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
+    if (videoRef.current) videoRef.current.srcObject = null;
   };
 
   const captureAndVerify = async (guestId) => {
-    if (isProcessing) {
-      return;
-    }
-
-    if (!videoRef.current || !canvasRef.current) {
-      return;
-    }
-
-    if (!guestId) {
-      return;
-    }
-
-    if (videoRef.current.readyState !== 4 || videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0) {
-      return;
-    }
-
+    if (isProcessing || !videoRef.current || !canvasRef.current || !guestId) return;
+    
     setIsProcessing(true);
-
     const video = videoRef.current;
     const canvas = canvasRef.current;
     
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    
-    const context = canvas.getContext('2d');
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 
     canvas.toBlob(async (blob) => {
       if (!blob) {
@@ -154,37 +117,26 @@ const CameraMonitor = () => {
       }
 
       const formData = new FormData();
-      formData.append('image', blob, 'frame.jpg');
+      formData.append('image', blob, 'capture.jpg');
       formData.append('userId', guestId);
 
       try {
-        setMatchStatus('Analyzing frame...');
-        
+        setMatchStatus('Analyzing face...');
         const res = await axiosInstance.post(`/camera/${waterId}/verify-arrival`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          timeout: 25000
+          headers: { 'Content-Type': 'multipart/form-data' }
         });
 
         if (res.data.match) {
-          setMatchStatus(`Face Verified! Sending OTP...`);
+          setMatchStatus('Face Verified!');
           stopCamera();
           setGuestEmail(res.data.guestEmail);
           setShowOtpForm(true);
           setOtpError('');
         } else {
-          const msg = res.data.message || `No match (score: ${res.data.score?.toFixed(2) || 'N/A'})`;
-          setMatchStatus(msg);
+          setMatchStatus(res.data.message || 'No match found.');
         }
       } catch (err) {
-        if (err.code === 'ECONNABORTED') {
-          setMatchStatus('Request timeout. Retrying...');
-        } else if (err.response?.status === 503) {
-          setMatchStatus('Camera service unavailable. Retrying...');
-        } else if (err.response) {
-          setMatchStatus(`Error: ${err.response.data?.message || 'Unknown error'}`);
-        } else {
-          setMatchStatus('Connection error. Retrying...');
-        }
+        setMatchStatus('Service error. Retrying...');
       } finally {
         setIsProcessing(false);
       }
@@ -195,61 +147,32 @@ const CameraMonitor = () => {
     e.preventDefault();
     setIsVerifying(true);
     setOtpError('');
-
     try {
-      const position = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        });
+      const pos = await new Promise((res, rej) => {
+        navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true });
       });
-
-      const currentCoordinates = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-      };
-
       const res = await axiosInstance.post('/camera/verify-arrival-otp', {
         hostwaterId: waterId,
         userId: arrivingGuestId,
-        otp: otp,
-        currentCoordinates: currentCoordinates,
+        otp,
+        currentCoordinates: { lat: pos.coords.latitude, lng: pos.coords.longitude }
       });
-
       if (res.data.success) {
-        setStatus(`Welcome, ${arrivingGuestId}!`);
-        setMatchStatus('Verification complete!');
+        setStatus(`Verification Successful`);
+        setMatchStatus('Entry Authorized');
         setShowOtpForm(false);
         setArrivingGuestId(null);
-        setGuestEmail('');
         setOtp('');
-      } else {
-        setOtpError(res.data.message || 'Verification failed.');
       }
     } catch (err) {
-      setOtpError(err.response?.data?.message || 'Failed to verify. Please try again.');
+      setOtpError(err.response?.data?.message || 'OTP Verification failed.');
     } finally {
       setIsVerifying(false);
     }
   };
 
-  const maskEmail = (email) => {
-    if (!email) return '';
-    const [name, domain] = email.split('@');
-    if (name.length <= 3) return email;
-    const maskedName = name.substring(0, 3) + '**********';
-    return `${maskedName}@${domain}`;
-  };
-
   return (
-    <div 
-      className="flex flex-col items-center justify-center min-h-screen w-full p-4"
-      style={{ 
-        backgroundColor: 'transparent',
-        overflow: 'hidden' 
-      }}
-    >
+    <div className={`flex flex-col items-center justify-center min-h-[85vh] w-full px-4 ${showOtpForm ? 'overflow-y-auto' : 'overflow-hidden'}`}>
       <style>
         {`
           ::-webkit-scrollbar {
@@ -261,111 +184,64 @@ const CameraMonitor = () => {
           }
         `}
       </style>
-      <div 
-        className="w-full max-w-4xl rounded-3xl shadow-2xl p-8 border transition-all duration-300 flex flex-col gap-6"
-        style={{ 
-          backgroundColor: theme.colors.cardBg,
-          borderColor: theme.colors.borderColor,
-          boxShadow: theme.colors.shadowLg,
-        }}
-      >
-        <div className="text-center">
-          <h1 
-            className="text-4xl font-extrabold mb-2"
-            style={{ color: theme.darkMode ? '#8a74f9' : '#6e8efb' }}
-          >
-            Camera Monitor
-          </h1>
-          <p className="text-lg opacity-80" style={{ color: theme.colors.mutedText }}>
-            Property ID: <span className="font-mono font-bold">{waterId || 'N/A'}</span>
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-6">
-          <div 
-            className="relative w-full aspect-video rounded-2xl overflow-hidden border-2 flex items-center justify-center shadow-inner mx-auto"
-            style={{ 
-              backgroundColor: theme.darkMode ? '#1a1a2e' : '#f0f0f0',
-              borderColor: theme.colors.borderColor,
-            }}
-          >
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
-              muted 
-              className="w-full h-full object-cover"
-            ></video>
-            {!isCameraActive && (
-              <div className="absolute flex flex-col items-center" style={{ color: theme.colors.mutedText }}>
-                <FiCamera size={64} className="opacity-20 mb-4" />
-                <p className="text-xl font-semibold">Camera Standby</p>
-              </div>
-            )}
-            {isProcessing && (
-              <div 
-                className="absolute top-4 right-4 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 animate-pulse shadow-lg"
-                style={{ backgroundColor: theme.colors.primaryBg, color: '#fff' }}
-              >
-                <FiLoader className="animate-spin" />
-                ANALYZING
-              </div>
-            )}
-            <canvas ref={canvasRef} className="hidden"></canvas>
-          </div>
-
-          <div 
-            className="text-center p-6 rounded-2xl border"
-            style={{ 
-              backgroundColor: theme.colors.activeBg,
-              borderColor: theme.colors.borderColor
-            }}
-          >
-            <p className="text-xs uppercase tracking-widest font-bold mb-1 opacity-60" style={{ color: theme.colors.mutedText }}>System Status</p>
-            <p className="text-xl font-bold" style={{ color: theme.colors.textColor }}>{status}</p>
-            {matchStatus && (
-              <p className="text-lg font-semibold mt-2" style={{ color: theme.darkMode ? '#8a74f9' : '#6e8efb' }}>{matchStatus}</p>
-            )}
-          </div>
-        </div>
-
-        {showOtpForm && (
-          <form onSubmit={handleOtpSubmit} className="p-6 rounded-2xl border-2 border-dashed flex-shrink-0 animate-in fade-in zoom-in duration-300" style={{ borderColor: theme.colors.primaryBg }}>
-            <h2 className="text-xl font-bold text-center mb-4" style={{ color: theme.colors.textColor }}>Verify Guest Identity</h2>
-            <div className="mb-6">
-              <div className="relative">
-                <FiLock 
-                  className="absolute left-4 top-1/2 -translate-y-1/2" 
-                  style={{ color: theme.colors.mutedText }}
-                />
-                <input
-                  type="text"
-                  id="otp"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  className="w-full pl-12 pr-4 py-4 rounded-xl focus:outline-none font-mono text-center text-2xl tracking-[0.5em]"
-                  style={{ 
-                    backgroundColor: theme.colors.baseColor,
-                    color: theme.colors.textColor,
-                    border: `2px solid ${theme.colors.borderColor}`
-                  }}
-                  placeholder="000000"
-                  maxLength={6}
-                />
-              </div>
+      <div className="w-full max-w-3xl flex flex-col items-center">
+        <div className="relative w-full aspect-video rounded-3xl overflow-hidden shadow-2xl border-4" 
+             style={{ backgroundColor: '#000', borderColor: theme.colors.borderColor }}>
+          
+          <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+          
+          {!isCameraActive && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
+              <FiCamera size={48} className="text-white/20 mb-4" />
+              <p className="text-white/40 font-medium">Waiting for Guest Arrival...</p>
             </div>
+          )}
 
-            <button
-              type="submit"
-              disabled={isVerifying}
-              className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-xl font-bold text-lg transition-all shadow-lg hover:brightness-110 active:scale-95"
-              style={{ backgroundColor: theme.colors.primaryBg, color: '#ffffff' }}
-            >
-              {isVerifying ? <FiLoader className="animate-spin" /> : <FiMapPin />}
-              {isVerifying ? 'VERIFYING...' : 'AUTHORIZE ENTRY'}
-            </button>
-          </form>
-        )}
+          {isProcessing && (
+            <div className="absolute top-6 right-6 px-4 py-2 bg-blue-600 text-white rounded-full text-xs font-bold animate-pulse shadow-lg">
+              SCANNING
+            </div>
+          )}
+          
+          <canvas ref={canvasRef} className="hidden" />
+        </div>
+
+        <div className="mt-10 w-full max-w-md text-center">
+          <div className="p-5 rounded-2xl border transition-all duration-300" 
+               style={{ backgroundColor: theme.colors.cardBg, borderColor: theme.colors.borderColor }}>
+            <p className="text-sm uppercase tracking-widest font-bold opacity-50 mb-1" style={{ color: theme.colors.mutedText }}>Status</p>
+            <p className="text-xl font-bold" style={{ color: theme.colors.textColor }}>{status}</p>
+            {matchStatus && <p className="mt-2 font-semibold text-blue-500 animate-pulse">{matchStatus}</p>}
+          </div>
+
+          {showOtpForm && (
+            <form onSubmit={handleOtpSubmit} className="mt-8 p-8 rounded-3xl border-2 border-dashed animate-in fade-in slide-in-from-bottom-4 duration-500" 
+                  style={{ borderColor: theme.colors.primaryBg, backgroundColor: theme.colors.cardBg }}>
+              <h2 className="text-lg font-bold mb-6" style={{ color: theme.colors.textColor }}>Guest Verification Required</h2>
+              <div className="relative mb-6">
+                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" style={{ color: theme.colors.textColor }} />
+                <input 
+                  type="text" 
+                  value={otp} 
+                  onChange={(e) => setOtp(e.target.value)} 
+                  className="w-full pl-12 pr-4 py-4 text-center text-3xl tracking-[0.5em] font-mono rounded-2xl border-2 outline-none transition-all focus:border-blue-500" 
+                  maxLength={6} 
+                  placeholder="000000" 
+                  style={{ backgroundColor: theme.colors.baseColor, color: theme.colors.textColor, borderColor: theme.colors.borderColor }}
+                />
+              </div>
+              {otpError && <p className="text-red-500 text-sm mb-4 font-medium">{otpError}</p>}
+              <button 
+                type="submit" 
+                disabled={isVerifying}
+                className="w-full py-4 bg-blue-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-blue-500/20 hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              >
+                {isVerifying ? <FiLoader className="animate-spin" /> : <FiMapPin />}
+                {isVerifying ? 'VERIFYING...' : 'AUTHORIZE ENTRY'}
+              </button>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );

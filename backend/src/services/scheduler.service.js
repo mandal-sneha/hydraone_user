@@ -59,7 +59,7 @@ const findDueGuests = async () => {
 };
 
 export const initializeScheduler = () => {
-  schedule.scheduleJob('* * * * *', () => {
+  schedule.scheduleJob('*/5 * * * * *', () => {
     findDueGuests();
   });
 };
