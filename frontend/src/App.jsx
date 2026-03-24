@@ -14,7 +14,8 @@ import Profile from './components/Profile.jsx';
 import ViewInvitation from './components/dashboardcomponents/ViewInvitation.jsx';
 import AddPropertyForm from './components/dashboardcomponents/addpropertycomponents/AddPropertyForm.jsx';
 import PropertyTenants from './components/dashboardcomponents/addpropertycomponents/PropertyTenants.jsx';
-import CameraMonitor from './components/dashboardcomponents/CameraMonitor.jsx';
+import EntryCameraMonitor from './components/dashboardcomponents/EntryCameraMonitor.jsx';
+import ExitCameraMonitor from './components/dashboardcomponents/ExitCameraMonitor.jsx';
 
 const App = () => {
   return (
@@ -44,7 +45,8 @@ const App = () => {
           <Route path="add-property-form" element={<AddPropertyForm />} />
           <Route path="property-tenants" element={<PropertyTenants/>} />
           <Route path="view-invitation" element={<ViewInvitation/>} />
-          <Route path="camera-monitor" element={<CameraMonitor />} />
+          <Route path="entry-camera-monitor" element={<EntryCameraMonitor />} />
+          <Route path="exit-camera-monitor" element={<ExitCameraMonitor />} />
         </Route>
       </Routes>
     </Router>

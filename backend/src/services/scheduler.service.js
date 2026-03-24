@@ -3,6 +3,7 @@ import moment from "moment-timezone";
 import { Invitation } from "../models/invitation.model.js";
 import { User } from "../models/user.model.js";
 import { getIo, getSocketMap } from "./socket.service.js";
+import { runFraudDetection } from "./fraud.detection.service.js";
 
 const findDueGuests = async () => {
   const io = getIo();
@@ -61,5 +62,9 @@ const findDueGuests = async () => {
 export const initializeScheduler = () => {
   schedule.scheduleJob('*/5 * * * * *', () => {
     findDueGuests();
+  });
+  
+  schedule.scheduleJob('0 */4 * * *', () => {
+    runFraudDetection();
   });
 };

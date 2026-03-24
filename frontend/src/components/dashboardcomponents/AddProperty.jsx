@@ -29,6 +29,7 @@ const AddProperty = () => {
   const [userOwnedProperties, setUserOwnedProperties] = useState([]);
   const [formData, setFormData] = useState({
     propertyName: "",
+    state: "",
     district: "",
     municipality: "",
     wardNo: "",
@@ -191,13 +192,16 @@ const AddProperty = () => {
     const parts = [];
     if (property.municipality) parts.push(property.municipality);
     if (property.district) parts.push(property.district);
+    if (property.state) parts.push(property.state);
     return parts.length > 0 ? parts.join(", ") : "No address";
   };
 
   const filteredProperties = properties.filter(
     (property) =>
       property.propertyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      property.exactLocation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      property.municipality?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      property.district?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      property.state?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       property.typeOfProperty?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       property.rootId?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -430,6 +434,7 @@ const AddProperty = () => {
             setShowAddModal(false);
             setFormData({
               propertyName: "",
+              state: "",
               district: "",
               municipality: "",
               wardNo: "",

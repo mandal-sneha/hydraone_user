@@ -13,6 +13,11 @@ const propertySchema = new mongoose.Schema({
     unique: true
   },
 
+  state: {
+  type: String,
+  required: true
+  },
+
   district: {
     type: String,
     required: true

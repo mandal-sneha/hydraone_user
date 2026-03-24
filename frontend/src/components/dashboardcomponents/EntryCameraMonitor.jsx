@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { axiosInstance } from '../../lib/axios.js';
-import { useTheme } from '../UserDashboard';
+import { useTheme } from '../UserDashboard.jsx';
 import { FiCamera, FiLoader, FiMapPin, FiLock } from 'react-icons/fi';
 
 const socket = io(axiosInstance.defaults.baseURL, {
@@ -11,7 +11,7 @@ const socket = io(axiosInstance.defaults.baseURL, {
   reconnectionAttempts: Infinity
 });
 
-const CameraMonitor = () => {
+const EntryCameraMonitor = () => {
   const location = useLocation();
   const waterId = location.state?.waterId;
   const theme = useTheme();
@@ -247,4 +247,4 @@ const CameraMonitor = () => {
   );
 };
 
-export default CameraMonitor;
+export default EntryCameraMonitor;

@@ -388,10 +388,18 @@ const UserDashboard = () => {
           />
           <MenuItem
             icon={<FiCamera />}
-            label="Camera Monitor"
+            label="Entry Camera Monitor"
             disabled={isWaterIdEmpty}
             tooltipMessage="Please add a property or join as a tenant to access this feature"
-            route={`/u/${currentUserId}/camera-monitor`}
+            route={`/u/${currentUserId}/entry-camera-monitor`}
+            navigationState={{ waterId: userData.waterId }}
+          />
+          <MenuItem
+            icon={<FiCamera />}
+            label="Exit Camera Monitor"
+            disabled={isWaterIdEmpty}
+            tooltipMessage="Please add a property or join as a tenant to access this feature"
+            route={`/u/${currentUserId}/exit-camera-monitor`}
             navigationState={{ waterId: userData.waterId }}
           />
           <MenuItem

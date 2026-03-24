@@ -87,7 +87,7 @@ const SignUpPage = () => {
     setError('');
     
     try {
-      const response = await axiosInstance.post('/user/verify-otp', {
+      const response = await axiosInstance.post('/user/verify-signup-otp', {
         email: formData.email,
         otp: otp
       });

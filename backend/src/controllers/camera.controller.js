@@ -1,6 +1,7 @@
 import { Invitation } from "../models/invitation.model.js";
 import { User } from "../models/user.model.js";
 import { Property } from "../models/property.model.js";
+import { EntryExitLog } from "../models/entryexitlog.model.js";
 import { flaskEmbeddingService } from "../lib/axios.js";
 import FormData from "form-data";
 import moment from "moment-timezone";
@@ -141,61 +142,153 @@ export const verifyGuestArrival = async (req, res) => {
   }
 };
 
+export const markUserExit = async (req, res) => {
+  try {
+    const { waterid } = req.params;
+
+    if (!req.files?.image) {
+      return res.status(400).json({ success: false, message: "No image provided." });
+    }
+
+    const log = await EntryExitLog.findOne({ waterId: waterid });
+    if (!log) {
+      return res.status(404).json({ success: false, message: "No active log found for this waterId." });
+    }
+
+    const primaryMembers = await User.find({ waterId: waterid });
+    const primaryUserIds = primaryMembers.map(u => u.userId);
+    const guestUserIds = log.arrivedGuests || [];
+    
+    const allPresentUserIds = [...new Set([...primaryUserIds, ...guestUserIds])];
+    const presentUsers = await User.find({ userId: { $in: allPresentUserIds } });
+
+    const form = new FormData();
+    form.append("image", req.files.image.data, {
+      filename: req.files.image.name,
+      contentType: req.files.image.mimetype,
+    });
+
+    const flaskRes = await flaskEmbeddingService.post("/extract-embedding", form, {
+      headers: { ...form.getHeaders() },
+      timeout: 10000
+    });
+
+    const SIMILARITY_THRESHOLD = 0.7;
+    let matchedUserId = null;
+
+    for (const user of presentUsers) {
+      if (!user.embeddingVector) continue;
+
+      const compForm = new FormData();
+      compForm.append("image", req.files.image.data, {
+        filename: req.files.image.name,
+        contentType: req.files.image.mimetype,
+      });
+      compForm.append("stored_embedding", JSON.stringify(user.embeddingVector));
+
+      try {
+        const compRes = await flaskEmbeddingService.post("/compare-faces", compForm, {
+          headers: { ...compForm.getHeaders() }
+        });
+
+        if (compRes.data.similarity_score > SIMILARITY_THRESHOLD) {
+          matchedUserId = user.userId;
+          break;
+        }
+      } catch (err) {
+        continue;
+      }
+    }
+
+    if (matchedUserId) {
+      const exitTime = moment().tz("Asia/Kolkata").format("h:mm A");
+      
+      if (primaryUserIds.includes(matchedUserId)) {
+        if (log.primaryMembersPresent && log.primaryMembersPresent.includes(matchedUserId)) {
+          log.primaryMembersPresent = log.primaryMembersPresent.filter(id => id !== matchedUserId);
+        }
+      } else {
+        if (!log.guestExitTimings) log.guestExitTimings = new Map();
+        log.guestExitTimings.set(matchedUserId, exitTime);
+      }
+      
+      await log.save();
+
+      return res.status(200).json({
+        success: true,
+        match: true,
+        userId: matchedUserId,
+        exitTime
+      });
+    }
+
+    return res.status(200).json({ success: true, match: false });
+
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 export const verifyArrivalOtp = async (req, res) => {
   try {
     const { hostwaterId, userId, otp, currentCoordinates } = req.body;
+
     if (!hostwaterId || !userId || !otp || !currentCoordinates)
-      return res
-        .status(400)
-        .json({ success: false, message: "Missing required fields." });
+      return res.status(400).json({ success: false, message: "Missing required fields." });
+
     const invitation = await Invitation.findOne({ hostwaterId });
     if (!invitation)
-      return res
-        .status(404)
-        .json({ success: false, message: "Invitation not found." });
+      return res.status(404).json({ success: false, message: "Invitation not found." });
+
     const storedOtp = invitation.arrivalOtp.get(userId);
     if (!storedOtp)
-      return res
-        .status(400)
-        .json({ success: false, message: "No arrival OTP found for this user." });
+      return res.status(400).json({ success: false, message: "No arrival OTP found for this user." });
+
     if (storedOtp !== otp)
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid OTP." });
+      return res.status(400).json({ success: false, message: "Invalid OTP." });
+
     const rootId = hostwaterId.split("_")[0];
     const property = await Property.findOne({ rootId });
+
     if (!property?.exactLocation)
-      return res
-        .status(404)
-        .json({ success: false, message: "Property location not found." });
+      return res.status(404).json({ success: false, message: "Property location not found." });
+
     const raw = property.exactLocation.split(",").map((v) => parseFloat(v.trim()));
     if (raw.length !== 2 || raw.some(isNaN))
-      return res
-        .status(500)
-        .json({ success: false, message: "Invalid property location data." });
+      return res.status(500).json({ success: false, message: "Invalid property location data." });
+
     const [a, b] = raw;
-    const propLatLng = [
-      { lat: a, lng: b },
-      { lat: b, lng: a },
-    ];
+    const propLatLng = [{ lat: a, lng: b }, { lat: b, lng: a }];
     const guestLat = parseFloat(currentCoordinates.lat);
     const guestLng = parseFloat(currentCoordinates.lng);
-    const distances = propLatLng.map((p) =>
-      getDistance(p.lat, p.lng, guestLat, guestLng)
-    );
+
+    const distances = propLatLng.map((p) => getDistance(p.lat, p.lng, guestLat, guestLng));
     const distance = Math.min(...distances);
+
     if (distance > LOCATION_RADIUS_METERS)
       return res.status(400).json({
         success: false,
-        message: `You must be within ${LOCATION_RADIUS_METERS} meters of the property to verify. Detected ≈${Math.round(
-          distance
-        )} m away.`,
+        message: `You must be within ${LOCATION_RADIUS_METERS} meters of the property to verify. Detected ≈${Math.round(distance)} m away.`,
       });
+
     invitation.arrivalOtp.delete(userId);
     await invitation.save();
-    return res
-      .status(200)
-      .json({ success: true, message: "OTP verified. Welcome!" });
+
+    const now = new Date();
+    const time = now.toLocaleTimeString("en-GB", { hour12: false });
+
+    const update = {
+      $addToSet: { arrivedGuests: userId },
+      $set: { [`guestEntryTimings.${userId}`]: time }
+    };
+
+    await EntryExitLog.findOneAndUpdate(
+      { waterId: hostwaterId },
+      update,
+      { upsert: true, new: true }
+    );
+
+    return res.status(200).json({ success: true, message: "OTP verified. Welcome!" });
   } catch (error) {
     return res.status(500).json({
       success: false,

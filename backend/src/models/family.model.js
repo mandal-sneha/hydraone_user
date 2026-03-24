@@ -16,11 +16,6 @@ const familySchema = new mongoose.Schema({
         required: false,
     },
 
-    guests: {
-        type: Map,
-        of: []
-    },
-
     extraWaterDates: {
         type: Map,
         of : Number

@@ -58,6 +58,7 @@ export const addProperty = async (req, res) => {
     const { userid } = req.params;
     const {
       propertyName,
+      state,
       district,
       municipality,
       wardNumber,
@@ -67,7 +68,7 @@ export const addProperty = async (req, res) => {
       id
     } = req.body;
 
-    if (!propertyName || !district || !municipality || !wardNumber || !typeOfProperty) {
+    if (!propertyName || !state || !district || !municipality || !wardNumber || !typeOfProperty) {
       return res.status(400).json({ success: false, message: "Missing required fields" });
     }
 
@@ -105,6 +106,7 @@ export const addProperty = async (req, res) => {
 
     const newPropertyFields = {
       propertyName: propertyName.trim(),
+      state: state.trim(),
       district: district.trim(),
       municipality: municipality.trim(),
       wardNumber: parseInt(wardNumber),

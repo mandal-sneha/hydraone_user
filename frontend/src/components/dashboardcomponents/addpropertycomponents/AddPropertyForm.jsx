@@ -1,6 +1,7 @@
-import React from "react";
-import { FiX } from "react-icons/fi";
+import React, { useState, useEffect, useMemo } from "react";
+import { FiX, FiSearch } from "react-icons/fi";
 import { axiosInstance } from "../../../lib/axios";
+import { LOCATION_DATA } from "../../../lib/locationData";
 
 const AddPropertyForm = ({
   colors,
@@ -13,8 +14,48 @@ const AddPropertyForm = ({
   closeModal,
   setProperties,
 }) => {
+  const [stateSearch, setStateSearch] = useState("");
+  const [districtSearch, setDistrictSearch] = useState("");
+  const [municipalitySearch, setMunicipalitySearch] = useState("");
+  const [showStateDropdown, setShowStateDropdown] = useState(false);
+  const [showDistrictDropdown, setShowDistrictDropdown] = useState(false);
+  const [showMunicipalityDropdown, setShowMunicipalityDropdown] = useState(false);
+
   const isPersonal = formData?.typeOfProperty === "Personal Property";
   const isApartment = formData?.typeOfProperty === "Apartment";
+
+  const states = useMemo(() => Object.keys(LOCATION_DATA), []);
+
+  const filteredStates = useMemo(() => {
+    if (!stateSearch) return states;
+    return states.filter(state => 
+      state.toLowerCase().includes(stateSearch.toLowerCase())
+    );
+  }, [states, stateSearch]);
+
+  const districts = useMemo(() => {
+    if (!formData.state) return [];
+    return Object.keys(LOCATION_DATA[formData.state] || {});
+  }, [formData.state]);
+
+  const filteredDistricts = useMemo(() => {
+    if (!districtSearch) return districts;
+    return districts.filter(district => 
+      district.toLowerCase().includes(districtSearch.toLowerCase())
+    );
+  }, [districts, districtSearch]);
+
+  const municipalities = useMemo(() => {
+    if (!formData.state || !formData.district) return [];
+    return LOCATION_DATA[formData.state][formData.district] || [];
+  }, [formData.state, formData.district]);
+
+  const filteredMunicipalities = useMemo(() => {
+    if (!municipalitySearch) return municipalities;
+    return municipalities.filter(muni => 
+      muni.toLowerCase().includes(municipalitySearch.toLowerCase())
+    );
+  }, [municipalities, municipalitySearch]);
 
   const updateUserWaterId = async (userId) => {
     try {
@@ -45,6 +86,7 @@ const AddPropertyForm = ({
 
     const {
       propertyName,
+      state,
       district,
       municipality,
       wardNo,
@@ -55,6 +97,12 @@ const AddPropertyForm = ({
 
     if (!propertyName?.trim()) {
       setError("Property name is required.");
+      setSubmitting(false);
+      return;
+    }
+
+    if (!state?.trim()) {
+      setError("State is required.");
       setSubmitting(false);
       return;
     }
@@ -112,6 +160,7 @@ const AddPropertyForm = ({
       const exactLocation = await getPreciseLocation();
       const requestPayload = {
         propertyName: propertyName.trim(),
+        state: state.trim(),
         district: district.trim(),
         municipality: municipality.trim(),
         wardNumber: parseInt(wardNo),
@@ -134,6 +183,7 @@ const AddPropertyForm = ({
 
         setFormData({
           propertyName: "",
+          state: "",
           district: "",
           municipality: "",
           wardNo: "",
@@ -160,6 +210,43 @@ const AddPropertyForm = ({
   const handlePropertyTypeChange = (value) => {
     setFormData((prev) => ({ ...prev, typeOfProperty: value, holdingNo: "", flatId: "" }));
   };
+
+  const handleStateSelect = (state) => {
+    handleInputChange("state", state);
+    handleInputChange("district", "");
+    handleInputChange("municipality", "");
+    setStateSearch(state);
+    setShowStateDropdown(false);
+  };
+
+  const handleDistrictSelect = (district) => {
+    handleInputChange("district", district);
+    handleInputChange("municipality", "");
+    setDistrictSearch(district);
+    setShowDistrictDropdown(false);
+  };
+
+  const handleMunicipalitySelect = (municipality) => {
+    handleInputChange("municipality", municipality);
+    setMunicipalitySearch(municipality);
+    setShowMunicipalityDropdown(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.state-dropdown-container')) {
+        setShowStateDropdown(false);
+      }
+      if (!event.target.closest('.district-dropdown-container')) {
+        setShowDistrictDropdown(false);
+      }
+      if (!event.target.closest('.municipality-dropdown-container')) {
+        setShowMunicipalityDropdown(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -189,33 +276,136 @@ const AddPropertyForm = ({
               }}
             />
 
-            <input
-              type="text"
-              placeholder="District *"
-              value={formData?.district || ""}
-              onChange={(e) => handleInputChange("district", e.target.value)}
-              required
-              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              style={{
-                backgroundColor: colors?.baseColor || "#ffffff",
-                color: colors?.textColor || "#000000",
-                borderColor: colors?.borderColor || "#cccccc",
-              }}
-            />
+            <div className="state-dropdown-container relative">
+              <label className="block text-sm font-medium mb-1" style={{ color: colors?.mutedText || "#666666" }}>
+                State *
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Select State"
+                  value={formData?.state || ""}
+                  onFocus={() => setShowStateDropdown(true)}
+                  onChange={(e) => {
+                    setStateSearch(e.target.value);
+                    setShowStateDropdown(true);
+                  }}
+                  required
+                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{
+                    backgroundColor: colors?.baseColor || "#ffffff",
+                    color: colors?.textColor || "#000000",
+                    borderColor: colors?.borderColor || "#cccccc",
+                  }}
+                />
+                <FiSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              </div>
+              {showStateDropdown && filteredStates.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 border rounded-lg shadow-lg max-h-48 overflow-y-auto" style={{
+                  backgroundColor: colors?.cardBg || "#ffffff",
+                  borderColor: colors?.borderColor || "#cccccc",
+                }}>
+                  {filteredStates.map(state => (
+                    <div
+                      key={state}
+                      onClick={() => handleStateSelect(state)}
+                      className="p-2 cursor-pointer hover:bg-gray-100 transition-colors"
+                      style={{ color: colors?.textColor || "#000000" }}
+                    >
+                      {state}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-            <input
-              type="text"
-              placeholder="Municipality *"
-              value={formData?.municipality || ""}
-              onChange={(e) => handleInputChange("municipality", e.target.value)}
-              required
-              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              style={{
-                backgroundColor: colors?.baseColor || "#ffffff",
-                color: colors?.textColor || "#000000",
-                borderColor: colors?.borderColor || "#cccccc",
-              }}
-            />
+            <div className="district-dropdown-container relative">
+              <label className="block text-sm font-medium mb-1" style={{ color: colors?.mutedText || "#666666" }}>
+                District *
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Select District"
+                  value={formData?.district || ""}
+                  onFocus={() => formData.state && setShowDistrictDropdown(true)}
+                  onChange={(e) => {
+                    setDistrictSearch(e.target.value);
+                    setShowDistrictDropdown(true);
+                  }}
+                  required
+                  disabled={!formData.state}
+                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  style={{
+                    backgroundColor: colors?.baseColor || "#ffffff",
+                    color: colors?.textColor || "#000000",
+                    borderColor: colors?.borderColor || "#cccccc",
+                  }}
+                />
+                {formData.state && <FiSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />}
+              </div>
+              {showDistrictDropdown && filteredDistricts.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 border rounded-lg shadow-lg max-h-48 overflow-y-auto" style={{
+                  backgroundColor: colors?.cardBg || "#ffffff",
+                  borderColor: colors?.borderColor || "#cccccc",
+                }}>
+                  {filteredDistricts.map(district => (
+                    <div
+                      key={district}
+                      onClick={() => handleDistrictSelect(district)}
+                      className="p-2 cursor-pointer hover:bg-gray-100 transition-colors"
+                      style={{ color: colors?.textColor || "#000000" }}
+                    >
+                      {district}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="municipality-dropdown-container relative">
+              <label className="block text-sm font-medium mb-1" style={{ color: colors?.mutedText || "#666666" }}>
+                Municipality *
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Select Municipality"
+                  value={formData?.municipality || ""}
+                  onFocus={() => formData.district && setShowMunicipalityDropdown(true)}
+                  onChange={(e) => {
+                    setMunicipalitySearch(e.target.value);
+                    setShowMunicipalityDropdown(true);
+                  }}
+                  required
+                  disabled={!formData.district}
+                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  style={{
+                    backgroundColor: colors?.baseColor || "#ffffff",
+                    color: colors?.textColor || "#000000",
+                    borderColor: colors?.borderColor || "#cccccc",
+                  }}
+                />
+                {formData.district && <FiSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />}
+              </div>
+              {showMunicipalityDropdown && filteredMunicipalities.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 border rounded-lg shadow-lg max-h-48 overflow-y-auto" style={{
+                  backgroundColor: colors?.cardBg || "#ffffff",
+                  borderColor: colors?.borderColor || "#cccccc",
+                }}>
+                  {filteredMunicipalities.map(municipality => (
+                    <div
+                      key={municipality}
+                      onClick={() => handleMunicipalitySelect(municipality)}
+                      className="p-2 cursor-pointer hover:bg-gray-100 transition-colors"
+                      style={{ color: colors?.textColor || "#000000" }}
+                    >
+                      {municipality}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <input
               type="number"
