@@ -97,7 +97,7 @@ const ProfileAvatar = ({ src, alt, className, iconSize = 20, theme }) => {
       alt={alt}
       className={className}
       onError={() => setHasError(true)}
-      style={{ display: 'block' }} // Ensure it's not hidden by parent styles
+      style={{ display: 'block' }}
     />
   );
 };
@@ -150,11 +150,16 @@ const UserDashboard = () => {
       if (userData.userId) {
         try {
           const response = await axiosInstance.get(`/user/${userData.userId}/get-user`);
-          if (response.data && response.data.userProfilePhoto) {
+          if (response.data && response.data.data && response.data.data.userProfilePhoto) {
             setUserData(prevData => ({
               ...prevData,
-              userProfilePhoto: response.data.userProfilePhoto
+              userProfilePhoto: response.data.data.userProfilePhoto
             }));
+            const storedUser = JSON.parse(localStorage.getItem('user'));
+            if (storedUser) {
+              storedUser.userProfilePhoto = response.data.data.userProfilePhoto;
+              localStorage.setItem('user', JSON.stringify(storedUser));
+            }
           }
         } catch (error) {
           console.error('Failed to fetch user profile:', error);

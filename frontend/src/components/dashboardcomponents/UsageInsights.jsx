@@ -82,7 +82,7 @@ const UsageInsights = () => {
       }
     };
     fetchData();
-  }, [colors.primaryBg, colors.accent]);
+  }, []);
 
   const toggleMonth = (month) => {
     setExpandedMonths((prev) => ({ ...prev, [month]: !prev[month] }));

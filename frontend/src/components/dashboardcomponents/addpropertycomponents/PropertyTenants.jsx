@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import { FiTrash2 } from "react-icons/fi";
 import { axiosInstance } from "../../../lib/axios.js";
 import blankPfp from "../../../assets/blank_pfp.jpg";
+import { useTheme } from '../../UserDashboard.jsx';
 
 const PropertyTenants = ({ property, updateTenantCount }) => {
+  const { darkMode, colors } = useTheme();
   const [tenants, setTenants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -60,9 +62,9 @@ const PropertyTenants = ({ property, updateTenantCount }) => {
 
   if (loading) {
     return (
-      <div className="p-4 border-t" style={{ backgroundColor: "#f9fafb" }} data-property-id={property._id}>
+      <div className="p-4 border-t" style={{ backgroundColor: colors.baseColor, borderColor: colors.borderColor }} data-property-id={property._id}>
         <div className="flex justify-center items-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: colors.primaryBg }}></div>
         </div>
       </div>
     );
@@ -70,34 +72,34 @@ const PropertyTenants = ({ property, updateTenantCount }) => {
 
   if (error) {
     return (
-      <div className="p-4 border-t" style={{ backgroundColor: "#f9fafb" }} data-property-id={property._id}>
-        <div className="text-center py-4 text-red-600 text-sm">{error}</div>
+      <div className="p-4 border-t" style={{ backgroundColor: colors.baseColor, borderColor: colors.borderColor }} data-property-id={property._id}>
+        <div className="text-center py-4 text-sm" style={{ color: '#ef4444' }}>{error}</div>
       </div>
     );
   }
 
   return (
-    <div className="p-4 border-t" style={{ backgroundColor: "#f9fafb" }} data-property-id={property._id}>
+    <div className="p-4 border-t" style={{ backgroundColor: colors.baseColor, borderColor: colors.borderColor }} data-property-id={property._id}>
       <div className="flex justify-between items-center mb-3">
-        <h4 className="text-sm font-semibold text-gray-700">
-          Tenants for: <span className="text-indigo-600">{property.propertyName}</span>
+        <h4 className="text-sm font-semibold" style={{ color: colors.textColor }}>
+          Tenants for: <span style={{ color: colors.primaryBg }}>{property.propertyName}</span>
         </h4>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm border border-gray-200 rounded">
-          <thead className="bg-gray-100 text-gray-600 uppercase text-xs">
+        <table className="w-full text-left text-sm rounded" style={{ borderColor: colors.borderColor }}>
+          <thead style={{ backgroundColor: darkMode ? 'rgba(255,255,255,0.05)' : '#f3f4f6' }}>
             <tr>
-              <th className="px-4 py-2">Photo</th>
-              <th className="px-4 py-2">Tenant Name</th>
-              <th className="px-4 py-2">User ID</th>
-              <th className="px-4 py-2">Water ID</th>
-              <th className="px-4 py-2">Actions</th>
+              <th className="px-4 py-2 text-xs uppercase tracking-wider" style={{ color: colors.mutedText }}>Photo</th>
+              <th className="px-4 py-2 text-xs uppercase tracking-wider" style={{ color: colors.mutedText }}>Tenant Name</th>
+              <th className="px-4 py-2 text-xs uppercase tracking-wider" style={{ color: colors.mutedText }}>User ID</th>
+              <th className="px-4 py-2 text-xs uppercase tracking-wider" style={{ color: colors.mutedText }}>Water ID</th>
+              <th className="px-4 py-2 text-xs uppercase tracking-wider" style={{ color: colors.mutedText }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {tenants.map((tenant, idx) => (
-              <tr key={idx} className="border-t border-gray-200 hover:bg-gray-50 transition-colors">
+              <tr key={idx} className="border-t" style={{ borderColor: colors.borderColor }}>
                 <td className="px-4 py-2">
                   <img
                     src={tenant.image || blankPfp}
@@ -108,13 +110,13 @@ const PropertyTenants = ({ property, updateTenantCount }) => {
                     }}
                   />
                 </td>
-                <td className="px-4 py-2 text-gray-800">{tenant.name}</td>
-                <td className="px-4 py-2 text-gray-700">{tenant.userId}</td>
-                <td className="px-4 py-2 text-gray-700">{tenant.waterId}</td>
+                <td className="px-4 py-2" style={{ color: colors.textColor }}>{tenant.name}</td>
+                <td className="px-4 py-2" style={{ color: colors.mutedText }}>{tenant.userId}</td>
+                <td className="px-4 py-2" style={{ color: colors.mutedText }}>{tenant.waterId}</td>
                 <td className="px-4 py-2">
                   <button
                     onClick={() => handleDelete(tenant.userId)}
-                    className="text-red-600 hover:text-red-800"
+                    className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
                     title="Delete Tenant"
                   >
                     <FiTrash2 className="text-base" />
@@ -124,7 +126,7 @@ const PropertyTenants = ({ property, updateTenantCount }) => {
             ))}
             {tenants.length === 0 && !loading && (
               <tr>
-                <td colSpan="5" className="px-4 py-3 text-center text-gray-500">
+                <td colSpan="5" className="px-4 py-3 text-center" style={{ color: colors.mutedText }}>
                   No tenants added yet.
                 </td>
               </tr>

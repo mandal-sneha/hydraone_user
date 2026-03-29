@@ -105,6 +105,7 @@ const WaterRegistration = () => {
         };
         setGuests([...guests, newGuestEntry]);
         setNewGuest({ name: '', entryTime: '', stayTime: '' });
+        setGuestSearchError('');
       } catch (error) {}
     }
   };
@@ -151,6 +152,12 @@ const WaterRegistration = () => {
     } finally {
       setIsRegistering(false);
     }
+  };
+
+  const inputStyle = {
+    backgroundColor: colors.cardBg,
+    borderColor: colors.borderColor,
+    color: colors.textColor,
   };
 
   if (loading) return (
@@ -219,12 +226,40 @@ const WaterRegistration = () => {
               ))}
             </div>
             <div className="space-y-4 border-t pt-6" style={{ borderColor: colors.borderColor }}>
-              <input type="text" placeholder="Guest User ID" value={newGuest.name} onChange={(e) => setNewGuest({...newGuest, name: e.target.value})} className="w-full p-4 rounded-xl border outline-none" style={{ backgroundColor: 'rgba(0,0,0,0.02)', borderColor: colors.borderColor, color: colors.textColor }} />
+              {guestSearchError && (
+                <p className="text-sm text-red-500">{guestSearchError}</p>
+              )}
+              <input
+                type="text"
+                placeholder="Guest User ID"
+                value={newGuest.name}
+                onChange={(e) => setNewGuest({...newGuest, name: e.target.value})}
+                className="w-full p-4 rounded-xl border outline-none"
+                style={inputStyle}
+              />
               <div className="grid grid-cols-2 gap-4">
-                <input type="time" value={newGuest.entryTime} onChange={(e) => setNewGuest({...newGuest, entryTime: e.target.value})} className="p-4 rounded-xl border outline-none" style={{ backgroundColor: 'rgba(0,0,0,0.02)', borderColor: colors.borderColor, color: colors.textColor }} />
-                <input type="text" placeholder="Stay Duration" value={newGuest.stayTime} onChange={(e) => setNewGuest({...newGuest, stayTime: e.target.value})} className="p-4 rounded-xl border outline-none" style={{ backgroundColor: 'rgba(0,0,0,0.02)', borderColor: colors.borderColor, color: colors.textColor }} />
+                <input
+                  type="time"
+                  value={newGuest.entryTime}
+                  onChange={(e) => setNewGuest({...newGuest, entryTime: e.target.value})}
+                  className="p-4 rounded-xl border outline-none"
+                  style={inputStyle}
+                />
+                <input
+                  type="text"
+                  placeholder="Stay Duration (hours)"
+                  value={newGuest.stayTime}
+                  onChange={(e) => setNewGuest({...newGuest, stayTime: e.target.value})}
+                  className="p-4 rounded-xl border outline-none"
+                  style={inputStyle}
+                />
               </div>
-              <button onClick={addGuest} className="w-full py-4 rounded-xl text-white font-bold" style={{ backgroundColor: colors.secondaryBg }}>Add Guest</button>
+              <button
+                onClick={addGuest}
+                className="w-full py-4 rounded-xl text-white font-bold shadow-md hover:shadow-lg transition-all duration-200 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 cursor-pointer"
+              >
+                + Add Guest
+              </button>
             </div>
           </div>
         </div>

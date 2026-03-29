@@ -626,6 +626,131 @@ export const updateUserProfile = async (req, res) => {
   }
 };
 
+export const getPaymentSummary = async (req, res) => {
+  try {
+    const { userid } = req.params;
+
+    const user = await User.findOne({ userId: userid });
+    if (!user || !user.waterId) {
+      return res.status(200).json({ success: true, hasWaterId: false });
+    }
+
+    const [rootId, tenantCode] = user.waterId.split("_");
+    const family = await Family.findOne({ rootId, tenantCode });
+    if (!family) {
+      return res.status(200).json({ success: true, hasWaterId: false });
+    }
+
+    const now = moment().tz("Asia/Kolkata");
+    const currentMonth = now.month();
+    const currentYear = now.year();
+    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+    let waterUsageMap = family.waterUsage instanceof Map ? family.waterUsage : new Map(Object.entries(family.waterUsage || {}));
+    let currentMonthWaterUsage = 0;
+    let lastMonthWaterUsage = 0;
+
+    waterUsageMap.forEach((usageValue, dateStr) => {
+      const date = moment(dateStr, "YYYY-MM-DD");
+      if (date.year() === currentYear && date.month() === currentMonth) {
+        currentMonthWaterUsage += Number(usageValue) || 0;
+      } else if (date.year() === prevYear && date.month() === prevMonth) {
+        lastMonthWaterUsage += Number(usageValue) || 0;
+      }
+    });
+
+    let extraWaterMap = family.extraWaterDates instanceof Map ? family.extraWaterDates : new Map(Object.entries(family.extraWaterDates || {}));
+    let currentMonthExtraWater = 0;
+    let lastMonthExtraWater = 0;
+
+    extraWaterMap.forEach((litres, dateStr) => {
+      const d = moment(dateStr, "YYYY-MM-DD");
+      if (d.year() === currentYear && d.month() === currentMonth) {
+        currentMonthExtraWater += Number(litres) || 0;
+      } else if (d.year() === prevYear && d.month() === prevMonth) {
+        lastMonthExtraWater += Number(litres) || 0;
+      }
+    });
+
+    const currentMonthFraudGuests = [];
+    const lastMonthFraudGuests = [];
+    
+    const fineDatesList = Array.isArray(family.fineDates) ? family.fineDates : [];
+    
+    fineDatesList.forEach(dateStr => {
+      const d = moment(dateStr, "YYYY-MM-DD");
+      const fineObject = {
+        guestName: "Unrecognized Guest",
+        detectedAt: dateStr,
+        fineAmount: 500,
+        isFromFineDates: true
+      };
+
+      if (d.isValid() && d.year() === currentYear && d.month() === currentMonth) {
+        currentMonthFraudGuests.push(fineObject);
+      } else if (d.isValid() && d.year() === prevYear && d.month() === prevMonth) {
+        lastMonthFraudGuests.push(fineObject);
+      }
+    });
+
+    const entryExitLogs = await EntryExitLog.find({ waterId: user.waterId });
+    let currentMonthGuests = 0;
+    let lastMonthGuests = 0;
+
+    for (const log of entryExitLogs) {
+      const logDate = moment(log.createdAt).tz("Asia/Kolkata");
+      let arrivedGuestsArray = Array.isArray(log.arrivedGuests) ? log.arrivedGuests : Object.values(log.arrivedGuests || {});
+      
+      if (logDate.year() === currentYear && logDate.month() === currentMonth) {
+        currentMonthGuests += arrivedGuestsArray.length;
+      } else if (logDate.year() === prevYear && logDate.month() === prevMonth) {
+        lastMonthGuests += arrivedGuestsArray.length;
+      }
+
+      let fraudMap = log.fraudulentGuests instanceof Map ? log.fraudulentGuests : new Map(Object.entries(log.fraudulentGuests || {}));
+      
+      for (const [guestId, fraudData] of fraudMap.entries()) {
+        const fDate = moment(fraudData.detectedAt).tz("Asia/Kolkata");
+        const guestUser = await User.findOne({ userId: guestId });
+        const fraudEntry = {
+          guestName: guestUser ? guestUser.userName : "Unknown Guest",
+          guestId: guestId,
+          detectedAt: fraudData.detectedAt,
+          fineAmount: 500
+        };
+
+        if (fDate.year() === currentYear && fDate.month() === currentMonth) {
+          currentMonthFraudGuests.push(fraudEntry);
+        } else if (fDate.year() === prevYear && fDate.month() === prevMonth) {
+          lastMonthFraudGuests.push(fraudEntry);
+        }
+      }
+    }
+
+    const prevMonthName = moment().subtract(1, 'month').format("MMMM YYYY");
+    const lastMonthPayment = (family.payments || []).find((p) => p.month === prevMonthName && p.status === "paid");
+
+    res.status(200).json({
+      success: true,
+      hasWaterId: true,
+      guestsThisMonth: currentMonthGuests,
+      extraWaterThisMonth: Math.round(currentMonthExtraWater),
+      fraudGuests: currentMonthFraudGuests,
+      waterUsedThisMonth: Math.round(currentMonthWaterUsage),
+      totalFinesThisMonth: currentMonthFraudGuests.length * 500,
+      lastMonthGuests: lastMonthGuests,
+      lastMonthExtraWater: Math.round(lastMonthExtraWater),
+      lastMonthFraudGuests: lastMonthFraudGuests,
+      lastMonthBillStatus: lastMonthPayment ? "paid" : "due",
+      lastMonthWaterUsed: Math.round(lastMonthWaterUsage),
+      totalFinesLastMonth: lastMonthFraudGuests.length * 500
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const verifySignupOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;

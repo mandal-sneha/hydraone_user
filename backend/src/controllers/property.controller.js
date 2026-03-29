@@ -104,6 +104,10 @@ export const addProperty = async (req, res) => {
     const tenantCode = "000";
     const waterId = `${rootId}_${tenantCode}`;
 
+    let families = [];
+
+    families.push(waterId);
+
     const newPropertyFields = {
       propertyName: propertyName.trim(),
       state: state.trim(),
@@ -112,11 +116,11 @@ export const addProperty = async (req, res) => {
       wardNumber: parseInt(wardNumber),
       rootId,
       numberOfTenants: 1,
-      families: [],
+      families: families,
       typeOfProperty,
       idType: propertyIdType,
       id: propertyId,
-      exactLocation: exactLocation || ""
+      exactLocation: exactLocation
     };
 
     const newProperty = new Property(newPropertyFields);
