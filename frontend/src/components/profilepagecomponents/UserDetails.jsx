@@ -89,8 +89,8 @@ const UserDetails = ({
               {isEditing ? (
                 <input
                   type="text"
-                  value={editedUser.userName}
-                  onChange={(e) => handleInputChange('userName', e.target.value)}
+                  value={editedUser?.userName || ''}
+                  onChange={(e) => handleInputChange && handleInputChange('userName', e.target.value)}
                   className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   style={inputStyle}
                 />
@@ -105,7 +105,6 @@ const UserDetails = ({
               <label className="flex items-center gap-2 text-sm font-medium mb-2" style={labelStyle}>
                 <FaIdCard size={12} style={{ color: '#10b981' }} />User ID
               </label>
-              {/* Always Read-Only */}
               <div className="px-3 py-2 border rounded-md" style={{ ...readOnlyStyle, opacity: 0.7 }}>
                 {user.userId}
               </div>
@@ -118,8 +117,8 @@ const UserDetails = ({
               {isEditing ? (
                 <input
                   type="email"
-                  value={editedUser.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  value={editedUser?.email || ''}
+                  onChange={(e) => handleInputChange && handleInputChange('email', e.target.value)}
                   className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   style={inputStyle}
                   placeholder="Enter email address"
@@ -138,8 +137,8 @@ const UserDetails = ({
               {isEditing ? (
                 <input
                   type="text"
-                  value={editedUser.aadharNo}
-                  onChange={(e) => handleInputChange('aadharNo', e.target.value)}
+                  value={editedUser?.aadharNo || ''}
+                  onChange={(e) => handleInputChange && handleInputChange('aadharNo', e.target.value)}
                   className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   style={inputStyle}
                   placeholder="XXXX XXXX XXXX"

@@ -17,12 +17,13 @@ export const protect = async (req, res, next) => {
       }
 
       req.user = user
-      return next()
+      next()
 
     } catch (error) {
+      console.error('Auth error:', error.message)
       return res.status(401).json({ success: false, message: "Not authorized, token failed" })
     }
+  } else {
+    return res.status(401).json({ success: false, message: "Not authorized, no token" })
   }
-
-  return res.status(401).json({ success: false, message: "Not authorized, no token" })
 }

@@ -14,6 +14,7 @@ import propertyRoutes from "./src/routes/property.route.js";
 import invitationRoutes from "./src/routes/invitation.route.js";
 import waterregistrationRoutes from "./src/routes/waterregistration.route.js";
 import cameraRoutes from "./src/routes/camera.route.js";
+import paymentRoutes from "./src/routes/payment.route.js";
 
 dotenv.config();
 
@@ -45,6 +46,7 @@ app.use("/property", propertyRoutes);
 app.use("/invitation", invitationRoutes);
 app.use("/waterregistration", waterregistrationRoutes);
 app.use("/camera", cameraRoutes);
+app.use("/payment", paymentRoutes);
 
 const PORT = process.env.PORT;
 

@@ -6,6 +6,7 @@ import {
 } from 'react-icons/fi';
 import { useTheme } from '../UserDashboard';
 import desertCactus from '../../assets/desert-cactus.svg';
+import PaymentModal from './PaymentModal';
 
 const RATES = {
   guestWater: 5,
@@ -229,8 +230,9 @@ const CurrentMonthPreview = ({ data, colors, darkMode }) => {
   );
 };
 
-const LastMonthBillCard = ({ data, colors, darkMode }) => {
+const LastMonthBillCard = ({ data, colors, darkMode, waterId }) => {
   const [open, setOpen] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const fraudGuests = data.lastMonthFraudGuests || [];
   const isPaid = data.lastMonthBillStatus === 'paid';
   const { guestCost, extraCost, fineCost, total } = calcBill(
@@ -305,6 +307,7 @@ const LastMonthBillCard = ({ data, colors, darkMode }) => {
           </button>
           {!isPaid && total > 0 && (
             <button
+              onClick={() => setShowPaymentModal(true)}
               className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold shadow-lg transition-all hover:opacity-90 active:scale-95"
               style={{ background: 'linear-gradient(135deg, #6e8efb, #a777e3)' }}
             >
@@ -324,9 +327,18 @@ const LastMonthBillCard = ({ data, colors, darkMode }) => {
           darkMode={darkMode}
           isPaid={isPaid}
           onClose={() => setOpen(false)}
-          onPay={() => {}}
         />
       )}
+
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        amount={total}
+        month={prevMonthLabel}
+        waterId={waterId}
+        colors={colors}
+        darkMode={darkMode}
+      />
     </>
   );
 };
@@ -337,6 +349,14 @@ const DashboardHome = () => {
   const [paymentData, setPaymentData] = useState(null);
   const [guestSlots, setGuestSlots] = useState({ "8am": [], "12pm": [], "3pm": [] });
   const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUserData(JSON.parse(storedUser));
+    }
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -394,17 +414,17 @@ const DashboardHome = () => {
     );
   }
 
-  if (!dashboardData || dashboardData.hasWaterId === false) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center" style={{ backgroundColor: colors.baseColor }}>
-        <div className="rounded-3xl p-12 shadow-xl max-w-md text-center" style={{ backgroundColor: colors.cardBg }}>
-          <img src={desertCactus} alt="Empty" className="w-20 mx-auto mb-8" />
-          <h3 className="text-3xl font-bold mb-4" style={{ color: colors.textColor }}>Your Water Dashboard</h3>
-          <p className="mb-6" style={{ color: colors.mutedText }}>Connect to a property to start tracking water usage.</p>
-        </div>
-      </div>
-    );
-  }
+  // if (!dashboardData || dashboardData.hasWaterId === false) {
+  //   return (
+  //     <div className="min-h-screen flex flex-col items-center justify-center" style={{ backgroundColor: colors.baseColor }}>
+  //       <div className="rounded-3xl p-12 shadow-xl max-w-md text-center" style={{ backgroundColor: colors.cardBg }}>
+  //         <img src={desertCactus} alt="Empty" className="w-20 mx-auto mb-8" />
+  //         <h3 className="text-3xl font-bold mb-4" style={{ color: colors.textColor }}>Your Water Dashboard</h3>
+  //         <p className="mb-6" style={{ color: colors.mutedText }}>Connect to a property to start tracking water usage.</p>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   const d = dashboardData;
 
@@ -458,7 +478,12 @@ const DashboardHome = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <CurrentMonthPreview data={mergedPaymentData} colors={colors} darkMode={darkMode} />
-          <LastMonthBillCard data={mergedPaymentData} colors={colors} darkMode={darkMode} />
+          <LastMonthBillCard 
+            data={mergedPaymentData} 
+            colors={colors} 
+            darkMode={darkMode}
+            waterId={userData?.waterId}
+          />
         </div>
 
         <div className="rounded-2xl p-8 shadow-lg border" style={{ backgroundColor: colors.cardBg, borderColor: colors.borderColor }}>

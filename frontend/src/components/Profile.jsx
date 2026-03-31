@@ -8,26 +8,21 @@ import FamilyMemberDetails from './profilepagecomponents/FamilyMemberDetails.jsx
 
 const Profile = () => {
   const { userid } = useParams();
-
   const [user, setUser] = useState({
     userId: '', userName: '', userProfilePhoto: null, aadharNo: '',
     email: '', address: '', waterId: ''
   });
-
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updateLoading, setUpdateLoading] = useState(false);
-
   const [isEditing, setIsEditing] = useState(false);
   const [editedUser, setEditedUser] = useState({ ...user });
   const [expandedMember, setExpandedMember] = useState(null);
   const [selectedProperty, setSelectedProperty] = useState('');
   const [showAddMember, setShowAddMember] = useState(false);
-
   const [familyMembers, setFamilyMembers] = useState([]);
   const [familyMembersLoading, setFamilyMembersLoading] = useState(false);
-
   const [newMemberUserId, setNewMemberUserId] = useState('');
 
   const fetchFamilyMembers = async (userIdToFetch) => {
@@ -53,16 +48,13 @@ const Profile = () => {
       try {
         const storedUser = JSON.parse(localStorage.getItem('user'));
         const userIdToFetch = userid || storedUser?.userId;
-
         if (!userIdToFetch) {
           setError('User ID not found');
           setLoading(false);
           return;
         }
-
         const response = await axiosInstance.get(`/user/${userIdToFetch}/get-profile-details`);
         const { user: userData, properties: propertiesData } = response.data;
-
         const transformedUser = {
           userId: userData.userId,
           userName: userData.userName,
@@ -72,7 +64,6 @@ const Profile = () => {
           address: '',
           waterId: userData.waterId
         };
-
         const transformedProperties = propertiesData.map((prop, index) => ({
           id: `property${index + 1}`,
           name: prop.propertyName,
@@ -83,35 +74,55 @@ const Profile = () => {
           propertyType: prop.typeOfProperty,
           label: prop.label
         }));
-
         setUser(transformedUser);
         setProperties(transformedProperties);
         setEditedUser(transformedUser);
-
         if (transformedProperties.length > 0) {
           setSelectedProperty(transformedProperties[0].id);
         }
-
         await fetchFamilyMembers(userIdToFetch);
-
         setLoading(false);
       } catch (err) {
         setError('Failed to fetch profile details');
         setLoading(false);
       }
     };
-
     fetchProfileDetails();
   }, []);
 
-  const handleEdit = () => { setIsEditing(true); setEditedUser({ ...user }); };
+  const handleEdit = () => {
+    setIsEditing(true);
+    setEditedUser({ ...user });
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditedUser({ ...user });
+  };
+
+  const handleInputChange = (field, value) => {
+    setEditedUser(prev => ({ ...prev, [field]: value }));
+  };
 
   const handleSave = async () => {
     try {
       setUpdateLoading(true);
-      await axiosInstance.put(`/user/${user.userId}/update-profile`, editedUser);
+      const payload = {
+        userName: editedUser.userName,
+        email: editedUser.email,
+        adhaarNumber: editedUser.aadharNo ? Number(editedUser.aadharNo) : undefined,
+        userProfilePhoto: editedUser.userProfilePhoto,
+      };
+      await axiosInstance.put(`/user/${user.userId}/update-profile`, payload);
       setUser(editedUser);
       setIsEditing(false);
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const updatedStoredUser = {
+        ...storedUser,
+        userName: editedUser.userName,
+        email: editedUser.email,
+      };
+      localStorage.setItem('user', JSON.stringify(updatedStoredUser));
     } catch (err) {
       console.error(err);
     } finally {
@@ -171,23 +182,21 @@ const Profile = () => {
           <p>{user.email}</p>
         </div>
       </div>
-
       <UserDetails
         user={user}
         editedUser={editedUser}
         isEditing={isEditing}
-        setEditedUser={setEditedUser}
         handleEdit={handleEdit}
+        handleCancel={handleCancel}
         handleSave={handleSave}
+        handleInputChange={handleInputChange}
         updateLoading={updateLoading}
       />
-
       <CurrentProperty
         properties={properties}
         selectedProperty={selectedProperty}
         setSelectedProperty={setSelectedProperty}
       />
-
       <FamilyMemberDetails
         familyMembers={familyMembers}
         expandedMember={expandedMember}

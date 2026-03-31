@@ -22,16 +22,6 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const convertMapToObject = (mapData) => {
-  if (!mapData) return {};
-  if (mapData.constructor === Object) return mapData;
-  if (mapData instanceof Map) return Object.fromEntries(mapData);
-  if (typeof mapData.toObject === "function") return mapData.toObject();
-  if (typeof mapData.entries === "function")
-    return Object.fromEntries(mapData.entries());
-  return {};
-};
-
 const parseDate = (dateStr) => {
   if (!dateStr) return null;
   const formats = [
@@ -587,7 +577,7 @@ export const getDashboardDetails = async (req, res) => {
 export const updateUserProfile = async (req, res) => {
   try {
     const { userid } = req.params;
-    const { userName, userProfilePhoto, email, userId: newUserId } = req.body;
+    const { userName, userProfilePhoto, email, adhaarNumber, userId: newUserId } = req.body;
     const updateFields = {};
     if (userName !== undefined && userName !== null) updateFields.userName = userName;
     if (userProfilePhoto !== undefined && userProfilePhoto !== null)
@@ -598,6 +588,16 @@ export const updateUserProfile = async (req, res) => {
         return res.status(400).json({ success: false, message: "Email already exists" });
       }
       updateFields.email = email;
+    }
+    if (adhaarNumber !== undefined && adhaarNumber !== null && adhaarNumber !== "") {
+      const parsedAadhaar = Number(adhaarNumber);
+      if (!isNaN(parsedAadhaar)) {
+        const existingAadhaarUser = await User.findOne({ adhaarNumber: parsedAadhaar, userId: { $ne: userid } });
+        if (existingAadhaarUser) {
+          return res.status(400).json({ success: false, message: "Aadhaar number already in use" });
+        }
+        updateFields.adhaarNumber = parsedAadhaar;
+      }
     }
     if (newUserId !== undefined && newUserId !== null && newUserId !== userid) {
       const existingUserIdUser = await User.findOne({ userId: newUserId });
