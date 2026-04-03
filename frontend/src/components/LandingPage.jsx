@@ -1,263 +1,183 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
+import Home from "./LandingPageComponents/Home";
+import Services from "./LandingPageComponents/Services";
+import CommunityImpact from "./LandingPageComponents/CommunityImpact";
+import FAQ from "./LandingPageComponents/FAQ";
+import Contact from "./LandingPageComponents/Contact";
 
 const LandingPage = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const homeRef = useRef(null);
-  const [bubbles, setBubbles] = useState([]);
+  const [activeSection, setActiveSection] = useState("home");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
-  const handleNavigation = (section) => {
-    if (section === "Home") {
-      setTimeout(() => {
-        homeRef.current.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
-    }
-  };
-
-  const handleSignIn = () => {
-    setIsLoggedIn(true);
-    console.log("User signed in");
+  const sectionRefs = {
+    home: useRef(null),
+    services: useRef(null),
+    communityimpact: useRef(null),
+    faq: useRef(null),
+    contact: useRef(null),
   };
 
   useEffect(() => {
-    const newBubbles = [];
-    for (let i = 0; i < 15; i++) {
-      const size = Math.random() * 60 + 20;
-      const left = Math.random() * 100;
-      const delay = Math.random() * 15;
-      const duration = Math.random() * 10 + 15;
-      
-      newBubbles.push(
-        <div 
-          key={i}
-          style={{
-            position: "absolute",
-            bottom: "-100px",
-            background: "rgba(255, 255, 255, 0.2)",
-            borderRadius: "50%",
-            width: `${size}px`,
-            height: `${size}px`,
-            left: `${left}%`,
-            animation: `rise ${duration}s infinite ease-in`,
-            animationDelay: `${delay}s`,
-            zIndex: 0,
-          }}
-        />
-      );
-    }
-    setBubbles(newBubbles);
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+      const sections = Object.entries(sectionRefs);
+      for (let i = sections.length - 1; i >= 0; i--) {
+        const [key, ref] = sections[i];
+        if (ref.current) {
+          const rect = ref.current.getBoundingClientRect();
+          if (rect.top <= 100) {
+            setActiveSection(key);
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const styles = {
-    container: {
-      minHeight: "100vh",
-      padding: "20px",
-      fontFamily: "'Poppins', sans-serif",
-      color: "#006d77",
-      overflowX: "hidden",
-      background: "linear-gradient(135deg, #f0f8ff 0%, #e6f7ff 100%)",
-      position: "relative",
-    },
-    bubbles: {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      width: "100%",
-      height: "100%",
-      overflow: "hidden",
-      zIndex: 0,
-    },
-    content: {
-      position: "relative",
-      zIndex: 1,
-    },
-    navBar: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      padding: "15px 40px",
-      backgroundColor: "rgba(255, 255, 255, 0.95)",
-      borderRadius: "8px",
-      position: "sticky",
-      top: "0",
-      zIndex: "100",
-      borderBottom: "1px solid rgba(0, 109, 119, 0.1)",
-      boxShadow: "0 2px 10px rgba(0, 0, 0, 0.05)",
-    },
-    logoContainer: {
-      display: "flex",
-      alignItems: "center",
-      gap: "10px",
-    },
-    logo: {
-      width: "40px",
-      height: "40px",
-      borderRadius: "50%",
-      background: "linear-gradient(135deg, #006d77, #00a8b5)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: "white",
-      fontWeight: "bold",
-      fontSize: "20px",
-      boxShadow: "0 2px 5px rgba(0, 109, 119, 0.3)",
-    },
-    navLinks: {
-      display: "flex",
-      gap: "25px",
-      fontSize: "16px",
-    },
-    navLink: {
-      cursor: "pointer",
-      padding: "5px 10px",
-      borderRadius: "4px",
-      transition: "all 0.3s ease",
-      fontWeight: "500",
-      border: "none",
-      background: "none",
-      color: "#006d77",
-      ":hover": {
-        color: "#00a8b5",
-        textDecoration: "underline",
-      },
-    },
-    rightSection: {
-      display: "flex",
-      alignItems: "center",
-      gap: "20px",
-    },
-    authButton: {
-      padding: "8px 16px",
-      borderRadius: "5px",
-      border: "none",
-      background: "linear-gradient(135deg, #006d77, #00a8b5)",
-      color: "#ffffff",
-      cursor: "pointer",
-      fontWeight: "600",
-      transition: "all 0.3s ease",
-      boxShadow: "0 2px 5px rgba(0, 109, 119, 0.3)",
-      ":hover": {
-        background: "linear-gradient(135deg, #00a8b5, #006d77)",
-        transform: "translateY(-2px)",
-        boxShadow: "0 4px 8px rgba(0, 109, 119, 0.4)",
-      },
-    },
-    homeSection: {
-      minHeight: "80vh",
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "center",
-      position: "relative",
-      zIndex: 1,
-    },
-    centerContent: {
-      textAlign: "center",
-      padding: "40px",
-      backgroundColor: "rgba(255, 255, 255, 0.9)",
-      borderRadius: "12px",
-      maxWidth: "800px",
-      margin: "0 auto",
-      boxShadow: "0 5px 25px rgba(0, 109, 119, 0.1)",
-      border: "1px solid rgba(0, 109, 119, 0.1)",
-    },
-    siteTitle: {
-      fontSize: "48px",
-      fontWeight: "700",
-      marginBottom: "20px",
-      color: "#006d77",
-      fontFamily: "'Poppins', sans-serif",
-      textShadow: "1px 1px 3px rgba(0, 109, 119, 0.1)",
-    },
-    tagline: {
-      fontSize: "20px",
-      marginTop: "10px",
-      color: "#457b9d",
-      maxWidth: "600px",
-      margin: "0 auto",
-      lineHeight: "1.6",
-      fontFamily: "'Poppins', sans-serif",
-    },
-    "@media (max-width: 768px)": {
-      navBar: {
-        flexDirection: "column",
-        padding: "15px",
-        gap: "15px",
-      },
-      navLinks: {
-        flexDirection: "column",
-        alignItems: "center",
-        gap: "10px",
-      },
-      centerContent: {
-        padding: "20px",
-      },
-      siteTitle: {
-        fontSize: "36px",
-      },
-      tagline: {
-        fontSize: "16px",
-      },
-    },
+  const scrollTo = (section) => {
+    sectionRefs[section]?.current?.scrollIntoView({ behavior: "smooth" });
+    setMenuOpen(false);
   };
 
-  const bubbleAnimation = `
-    @keyframes rise {
-      0% {
-        bottom: -100px;
-        transform: translateX(0);
-      }
-      50% {
-        transform: translateX(100px);
-      }
-      100% {
-        bottom: 100%;
-        transform: translateX(-100px);
-      }
-    }
-  `;
+  const navLinks = [
+    { key: "home", label: "Home" },
+    { key: "services", label: "Services" },
+    { key: "communityimpact", label: "Community Impact" },
+    { key: "faq", label: "FAQ" },
+    { key: "contact", label: "Contact" },
+  ];
 
   return (
-    <div style={styles.container}>
-      {/* Bubble animation */}
-      <style>{bubbleAnimation}</style>
-      <div style={styles.bubbles}>
-        {bubbles}
-      </div>
-      
-      <div style={styles.content}>
-        <div style={styles.navBar}>
-          <div style={styles.logoContainer}>
-            <div style={styles.logo}>HO</div>
+    <div className="min-h-screen font-sans bg-white">
+      {/* Navbar */}
+      <nav
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+          scrolled
+            ? "bg-white/90 backdrop-blur-md shadow-sm border-b border-sky-100"
+            : "bg-transparent"
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-400 to-indigo-400 flex items-center justify-center shadow-md">
+              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C12 2 4 10.5 4 15a8 8 0 0016 0C20 10.5 12 2 12 2z" />
+              </svg>
+            </div>
+            <span
+              className={`text-xl font-bold tracking-tight transition-colors ${
+                scrolled ? "text-sky-800" : "text-white"
+              }`}
+            >
+              Hydra<span className="text-sky-400">One</span>
+            </span>
           </div>
-          <div style={styles.navLinks}>
-            {["Home", "Service", "Community Impact", "News & Updates", "FAQ", "Contact"].map((item) => (
-              <button 
-                key={item} 
-                style={styles.navLink}
-                onClick={() => handleNavigation(item)}
-                aria-label={`Navigate to ${item}`}
-              >
-                {item}
-              </button>
+
+          {/* Desktop Nav */}
+          <ul className="hidden md:flex items-center gap-1">
+            {navLinks.map(({ key, label }) => (
+              <li key={key}>
+                <button
+                  onClick={() => scrollTo(key)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                    activeSection === key
+                      ? "bg-sky-100 text-sky-700"
+                      : scrolled
+                      ? "text-slate-600 hover:text-sky-600 hover:bg-sky-50"
+                      : "text-white/90 hover:text-white hover:bg-white/15"
+                  }`}
+                >
+                  {label}
+                </button>
+              </li>
             ))}
+          </ul>
+
+          {/* CTA */}
+          <div className="hidden md:flex items-center gap-3">
+            <a
+              href="/login"
+              className={`text-sm font-medium transition-colors ${
+                scrolled ? "text-sky-700 hover:text-sky-900" : "text-white/90 hover:text-white"
+              }`}
+            >
+              Log in
+            </a>
+            <a
+              href="/signup"
+              className="bg-gradient-to-r from-sky-400 to-indigo-400 text-white text-sm font-semibold px-5 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300"
+            >
+              Get Started
+            </a>
           </div>
-          <div style={styles.rightSection}>
-            {!isLoggedIn && (
-              <button style={styles.authButton} onClick={handleSignIn}>
-                Sign In
-              </button>
-            )}
-          </div>
+
+          {/* Hamburger */}
+          <button
+            className="md:hidden p-2 rounded-lg"
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            <div className={`w-5 h-0.5 mb-1 transition-all ${scrolled ? "bg-slate-700" : "bg-white"}`} />
+            <div className={`w-5 h-0.5 mb-1 transition-all ${scrolled ? "bg-slate-700" : "bg-white"}`} />
+            <div className={`w-5 h-0.5 transition-all ${scrolled ? "bg-slate-700" : "bg-white"}`} />
+          </button>
         </div>
 
-        <div ref={homeRef} style={styles.homeSection}>
-          <div style={styles.centerContent}>
-            <h1 style={styles.siteTitle}>HydraOne</h1>
-            <p style={styles.tagline}>
-              One-stop solution for all your water resource needs
-            </p>
+        {/* Mobile Menu */}
+        {menuOpen && (
+          <div className="md:hidden bg-white/95 backdrop-blur-md border-t border-sky-100 px-6 py-4 flex flex-col gap-2 shadow-lg">
+            {navLinks.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => scrollTo(key)}
+                className={`text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  activeSection === key
+                    ? "bg-sky-100 text-sky-700"
+                    : "text-slate-600 hover:bg-sky-50 hover:text-sky-600"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+            <div className="flex gap-3 pt-2">
+              <a href="/login" className="flex-1 text-center py-2 rounded-xl border border-sky-200 text-sky-700 text-sm font-medium">Log in</a>
+              <a href="/signup" className="flex-1 text-center py-2 rounded-xl bg-gradient-to-r from-sky-400 to-indigo-400 text-white text-sm font-semibold">Get Started</a>
+            </div>
+          </div>
+        )}
+      </nav>
+
+      {/* Sections */}
+      <div ref={sectionRefs.home}><Home scrollTo={scrollTo} /></div>
+      <div ref={sectionRefs.services}><Services /></div>
+      <div ref={sectionRefs.communityimpact}><CommunityImpact /></div>
+      <div ref={sectionRefs.faq}><FAQ /></div>
+      <div ref={sectionRefs.contact}><Contact /></div>
+
+      {/* Footer */}
+      <footer className="bg-gradient-to-br from-sky-900 to-indigo-900 text-white py-12 px-6">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white">
+                <path d="M12 2C12 2 4 10.5 4 15a8 8 0 0016 0C20 10.5 12 2 12 2z" />
+              </svg>
+            </div>
+            <span className="font-bold text-lg">HydraOne</span>
+          </div>
+          <p className="text-sky-300 text-sm text-center">
+            © 2025 HydraOne. Smart Water Management for a Sustainable Future.
+          </p>
+          <div className="flex gap-4 text-sm text-sky-300">
+            <a href="#" className="hover:text-white transition-colors">Privacy</a>
+            <a href="#" className="hover:text-white transition-colors">Terms</a>
+            <a href="#" className="hover:text-white transition-colors">Support</a>
           </div>
         </div>
-      </div>
+      </footer>
     </div>
   );
 };
