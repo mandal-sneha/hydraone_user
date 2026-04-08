@@ -4,7 +4,7 @@ flask-cors
 python-dotenv
 torch==2.2.2+cpu
 torchvision==0.17.2+cpu
-facenet-pytorch
+facenet-pytorch==2.6.0
 numpy
 scikit-learn
 Pillow
