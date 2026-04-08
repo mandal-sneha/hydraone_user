@@ -1,8 +1,5 @@
 Flask
-opencv-python
-requests
 flask-cors
+requests
 Pillow
-dotenv
-torch
-facenet-pytorch
+python-dotenv

@@ -4,7 +4,7 @@ import numpy as np
 from facenet_pytorch import MTCNN, InceptionResnetV1
 from sklearn.metrics.pairwise import cosine_similarity
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cpu"
 mtcnn = MTCNN(image_size=160, margin=0, keep_all=False, device=device)
 resnet = InceptionResnetV1(pretrained="vggface2").eval().to(device)
 
@@ -25,12 +25,9 @@ def compare_face_embeddings(file_storage, stored_embedding):
         current_embedding, error = extract_face_embedding(file_storage)
         if error:
             return None, error
-        
         stored_emb_array = np.array(stored_embedding).reshape(1, -1)
         current_emb_array = np.array(current_embedding).reshape(1, -1)
-        
         similarity_score = cosine_similarity(stored_emb_array, current_emb_array)[0][0]
-        
         return float(similarity_score), None
     except Exception as ex:
         return None, str(ex)
