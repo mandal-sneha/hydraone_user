@@ -7,4 +7,4 @@ torchvision==0.26.0+cpu
 facenet-pytorch>=2.6.0
 numpy
 scikit-learn
-Pillow>=10.3.0
+Pillow>=10.2.0,<10.3.0
