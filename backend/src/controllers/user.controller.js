@@ -468,29 +468,28 @@ export const getDashboardDetails = async (req, res) => {
   try {
     const { userid } = req.params;
     const user = await User.findOne({ userId: userid });
+    
     if (!user || !user.waterId) {
       return res.status(200).json({ success: true, hasWaterId: false });
     }
+
+    const now = moment().tz("Asia/Kolkata");
     const [rootId, tenantCode] = user.waterId.split("_");
     const family = await Family.findOne({ rootId, tenantCode });
-    if (!family) return res.status(200).json({ success: true, hasWaterId: false });
-    const now = moment().tz("Asia/Kolkata");
-    const startOfMonth = now.clone().startOf("month");
-    const startOfLastMonth = now.clone().subtract(1, "month").startOf("month");
-    const endOfLastMonth = now.clone().subtract(1, "month").endOf("month");
+
     let waterUsedThisMonth = 0;
     let lastMonthWaterUsage = 0;
     let guestsThisMonth = 0;
     let fraudLitres = 0;
-    let waterUsageMap;
-    if (family.waterUsage instanceof Map) {
-      waterUsageMap = family.waterUsage;
-    } else if (typeof family.waterUsage === "object" && family.waterUsage !== null) {
-      waterUsageMap = new Map(Object.entries(family.waterUsage));
-    } else {
-      waterUsageMap = new Map();
-    }
-    if (waterUsageMap.size > 0) {
+
+    if (family) {
+      const startOfMonth = now.clone().startOf("month");
+      const startOfLastMonth = now.clone().subtract(1, "month").startOf("month");
+      const endOfLastMonth = now.clone().subtract(1, "month").endOf("month");
+      
+      const waterUsageMap = family.waterUsage instanceof Map ? 
+        family.waterUsage : new Map(Object.entries(family.waterUsage || {}));
+
       for (const [dateStr, usageValue] of waterUsageMap.entries()) {
         const date = moment(dateStr, "YYYY-MM-DD");
         if (date.isValid()) {
@@ -500,70 +499,44 @@ export const getDashboardDetails = async (req, res) => {
         }
       }
     }
+
     const entryExitLogs = await EntryExitLog.find({ waterId: user.waterId });
+    const startOfMonth = now.clone().startOf("month");
     for (const log of entryExitLogs) {
-      const logDate = moment(log.createdAt);
-      if (logDate.isSameOrAfter(startOfMonth)) {
-        let arrivedGuestsArray = [];
-        if (Array.isArray(log.arrivedGuests)) {
-          arrivedGuestsArray = log.arrivedGuests;
-        } else if (log.arrivedGuests && typeof log.arrivedGuests === "object") {
-          arrivedGuestsArray = Object.values(log.arrivedGuests);
-        }
-        guestsThisMonth += arrivedGuestsArray.length;
+      if (moment(log.createdAt).isSameOrAfter(startOfMonth)) {
+        const arrived = Array.isArray(log.arrivedGuests) ? 
+          log.arrivedGuests : Object.values(log.arrivedGuests || {});
+        guestsThisMonth += arrived.length;
       }
     }
-    const invitation = await Invitation.findOne({ hostwaterId: user.waterId });
-    if (invitation && invitation.invitedGuests) {
-      let invitedGuestsMap;
-      if (invitation.invitedGuests instanceof Map) {
-        invitedGuestsMap = invitation.invitedGuests;
-      } else if (typeof invitation.invitedGuests === "object" && invitation.invitedGuests !== null) {
-        invitedGuestsMap = new Map(Object.entries(invitation.invitedGuests));
-      } else {
-        invitedGuestsMap = new Map();
-      }
-      let stayDurationMap;
-      if (invitation.stayDuration instanceof Map) {
-        stayDurationMap = invitation.stayDuration;
-      } else if (typeof invitation.stayDuration === "object" && invitation.stayDuration !== null) {
-        stayDurationMap = new Map(Object.entries(invitation.stayDuration));
-      } else {
-        stayDurationMap = new Map();
-      }
-      for (const [guestId, status] of invitedGuestsMap.entries()) {
-        if (status === "arrived") {
-          const stay = parseInt(stayDurationMap.get(guestId)) || 0;
-          if (stay > 24) fraudLitres += 5;
-        }
-      }
-    }
-    const baseRate = 10;
-    const currentBill = waterUsedThisMonth * baseRate + fraudLitres * baseRate;
-    const lastMonthBill = lastMonthWaterUsage * baseRate;
+
     const supplyTimes = [
-      { h: 8, t: "8 AM" },
-      { h: 12, t: "12 PM" },
-      { h: 15, t: "3 PM" },
+      { h: 8, t: "at 8 AM" },
+      { h: 12, t: "at 12 PM" },
+      { h: 15, t: "at 3 PM" },
     ];
+
     let nextSupply = {
-      t: "8 AM (Tomorrow)",
+      t: "at 8 AM (Tomorrow)",
       m: now.clone().add(1, "day").startOf("day").hour(8),
     };
+
     for (const supply of supplyTimes) {
-      const supplyMoment = now.clone().hour(supply.h).startOf("hour");
+      const supplyMoment = now.clone().hour(supply.h).startOf("hour").minute(0).second(0);
       if (now.isBefore(supplyMoment)) {
         nextSupply = { t: supply.t, m: supplyMoment };
         break;
       }
     }
+
+    const baseRate = 10;
     return res.status(200).json({
       success: true,
       hasWaterId: true,
       waterUsedThisMonth: Math.round(waterUsedThisMonth),
       guestsThisMonth,
-      billThisMonth: Math.round(currentBill),
-      lastMonthBill: Math.round(lastMonthBill),
+      billThisMonth: Math.round(waterUsedThisMonth * baseRate),
+      lastMonthBill: Math.round(lastMonthWaterUsage * baseRate),
       billStatus: "paid",
       nextSupplyTime: nextSupply.t,
       hoursUntilNext: Math.max(0, Math.ceil(nextSupply.m.diff(now, "minutes") / 60)),

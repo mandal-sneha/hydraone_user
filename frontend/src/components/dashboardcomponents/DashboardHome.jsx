@@ -414,19 +414,7 @@ const DashboardHome = () => {
     );
   }
 
-  // if (!dashboardData || dashboardData.hasWaterId === false) {
-  //   return (
-  //     <div className="min-h-screen flex flex-col items-center justify-center" style={{ backgroundColor: colors.baseColor }}>
-  //       <div className="rounded-3xl p-12 shadow-xl max-w-md text-center" style={{ backgroundColor: colors.cardBg }}>
-  //         <img src={desertCactus} alt="Empty" className="w-20 mx-auto mb-8" />
-  //         <h3 className="text-3xl font-bold mb-4" style={{ color: colors.textColor }}>Your Water Dashboard</h3>
-  //         <p className="mb-6" style={{ color: colors.mutedText }}>Connect to a property to start tracking water usage.</p>
-  //       </div>
-  //     </div>
-  //   );
-  // }
-
-  const d = dashboardData;
+  const d = dashboardData || { waterUsedThisMonth: 0, guestsThisMonth: 0, nextSupplyTime: 'Loading...', hoursUntilNext: 0 };
 
   const mergedPaymentData = {
     guestsThisMonth: paymentData?.guestsThisMonth ?? d.guestsThisMonth ?? 0,
@@ -470,7 +458,7 @@ const DashboardHome = () => {
               <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'rgba(249,115,22,0.1)' }}>
                 <FiTruck className="w-6 h-6" style={{ color: '#f97316' }} />
               </div>
-              <span className="text-lg font-bold" style={{ color: colors.textColor }}>{d.nextSupplyTime}</span>
+              <span className="text-lg font-bold" style={{ color: colors.textColor }}>{d.nextSupplyTime || 'Not Available'}</span>
             </div>
             <p className="text-sm font-medium" style={{ color: colors.mutedText }}>Next Supply</p>
           </div>
@@ -512,10 +500,10 @@ const DashboardHome = () => {
                           <div className="font-bold text-sm" style={{ color: colors.textColor }}>{formatTime(guest.arrivalTime)}</div>
                         </div>
                         <div className="text-right">
-                          <div className="flex items-center gap-1 justify-end text-xs mb-1" style={{ color: colors.accent }}>
+                          <div className="flex items-center gap-1 justify-end text-xs mb-1" style={{ color: colors.mutedText }}>
                             <FiLogIn className="w-3 h-3" /> Actual Entry
                           </div>
-                          <div className="font-bold text-sm" style={{ color: guest.actualEntryTime ? colors.accent : colors.mutedText }}>
+                          <div className="font-bold text-sm" style={{ color: guest.actualEntryTime ? colors.primaryBg : colors.mutedText }}>
                             {guest.actualEntryTime ? formatTime(guest.actualEntryTime) : 'Not Arrived'}
                           </div>
                         </div>
